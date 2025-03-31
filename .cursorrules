@@ -1,0 +1,166 @@
+# Flutter Cursor Rules
+
+# Core Principle: Adapt & Enhance
+FLEXIBILITY_NOTICE = '''
+Golden Rule: Structural Adaptability
+- Prioritize project consistency over rule consistency
+- Mirror existing patterns before suggesting improvements
+- Preserve historical decisions while modernizing carefully
+- Add @ADAPTIVE comments when proposing structural changes'''
+
+# Flutter 3.x+ Standards
+FLUTTER_BEST_PRACTICES = [
+    "Enforce Dart 3+ features (records, patterns, sealed classes)",
+    "Implement Material 3 with dynamic color support",
+    "Build adaptive cross-platform layouts",
+    "Use Impeller rendering for new projects",
+    "Implement deep linking with GoRouter",
+    "Adopt modern app lifecycle management",
+    "Use Isolates for heavy computations",
+    "Follow official Flutter/Dart style guide",
+    "Implement platform-specific UI optimizations"
+]
+
+# Architectural Patterns
+ARCHITECTURE_STANDARDS = '''
+Layered Architecture Options:
+1. Clean Architecture + BLoC (Complex projects)
+2. Riverpod + StateNotifier (Modern alternative)
+3. MVVM with Stacked (Xamarin conversions)
+4. Redux (Web-focused teams)
+
+State Management Hierarchy:
+- BLoC/Cubit: Business logic
+- Riverpod: App-wide state
+- Provider: Local state
+- StatefulWidget: UI state only
+
+Dependency Injection:
+- GetIt + injectable: Service location
+- Riverpod: Widget-level dependencies
+- Constructor injection: Testable code'''
+
+# Project Structure
+PROJECT_STRUCTURE = '''
+lib/
+  core/
+    app/          # App services
+    common/       # Shared utilities
+    constants/    # Enums/strings
+    di/          # Dependency injection
+    l10n/        # Localization
+    theme/       # Design system
+    utils/       # Helper functions
+  
+  features/       # Feature modules
+    feature_name/
+      api/       # Contracts
+      data/      # Implementation
+      domain/    # Business logic
+      ui/        # Presentation
+
+test/
+  contract/      # Contract tests
+  integration/   # E2E tests
+  mock/          # Mocks
+  unit/          # Unit tests'''
+
+# Code Quality Standards
+CODING_REQUIREMENTS = '''
+Mandatory:
+- Null safety with sound checking
+- 100% business logic test coverage
+- Linter enforcement via analysis_options.yaml
+- Immutable data classes
+
+Recommended:
+- Either<Failure,T> error handling
+- Functional programming patterns
+- Async operations with async_either
+- Result pattern over exceptions
+
+Prohibited:
+- Global state without provider
+- Business logic in UI layer
+- Direct API calls from presentation
+- print() in production code'''
+
+# Widget Development
+WIDGET_STANDARDS = '''
+Composition Rules:
+1. 30/70 Layout/Logic ratio
+2. Const constructors where possible
+3. No build() methods in BLoCs
+4. Builder patterns for context safety
+
+Performance Checklist:
+- Test with --profile mode
+- WebP image format
+- ListView.builder with itemExtent
+- Minimize opacity layers
+- Cache expensive operations
+
+Testing:
+- Widget tests with Mocktail
+- Golden tests for components
+- BLoC tests with bloc_test'''
+
+# Dependency Management
+DEPENDENCY_RULES = '''
+Package Requirements:
+- 100+ pub points
+- Active maintenance
+- 95%+ test coverage
+- Null safe
+- No deprecated dependencies
+
+Update Policy:
+- Weekly dependency checks
+- Security patches within 24h
+- Deprecated replacements in 2 weeks
+
+Essential Packages:
+- Riverpod/Provider
+- GoRouter
+- Freezed
+- Dartz
+- Mocktail'''
+
+# Security Standards
+SECURITY_REQUIREMENTS = '''
+Data Protection:
+- Encrypted storage
+- HTTPS-only traffic
+- Certificate pinning
+- OWASP compliance
+
+Authentication:
+- JWT refresh rotation
+- Biometric encryption
+- OAuth2 with PKCE
+- Session timeouts
+
+Validation:
+- Regex patterns
+- SQL injection prevention
+- XSS protection'''
+
+# CI/CD Pipeline
+CI_CD_STANDARDS = '''
+Build Requirements:
+- Zero lint warnings
+- 100% critical path coverage
+- Code size analysis
+- Bundle validation
+
+Release Process:
+- Semantic versioning
+- Flavored builds
+- Signed artifacts
+- Automated changelog
+
+Monitoring:
+- Crash reporting
+- Performance metrics
+- Analytics tracking
+- Log level management'''
