@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:loyalty_app/core/common/widgets/dinarys_logo.dart';
 import 'package:loyalty_app/core/common/widgets/simple_glass_card.dart';
 import 'package:loyalty_app/core/constants/app_config.dart';
@@ -6,6 +7,9 @@ import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/core/utils/gradient_background.dart';
 import 'package:loyalty_app/features/loyalty/domain/models/loyalty_level.dart';
 import 'package:loyalty_app/features/loyalty/domain/models/loyalty_transaction.dart';
+import 'package:loyalty_app/features/loyalty/domain/blocs/loyalty_bloc.dart';
+import 'package:loyalty_app/features/loyalty/ui/screens/loyalty_points_screen.dart';
+import 'package:loyalty_app/features/loyalty/ui/widgets/loyalty_points_widget.dart';
 
 class LoyaltyDashboardScreen extends StatelessWidget {
   const LoyaltyDashboardScreen({super.key});
@@ -33,17 +37,25 @@ class LoyaltyDashboardScreen extends StatelessWidget {
                   _buildCurrentLevelSection(context, loyaltyLevel),
                   const SizedBox(height: 20),
 
+                  // Add the loyalty points widget before the cashback card
+                  const SizedBox(height: 24.0),
+                  const LoyaltyPointsWidget(),
+                  
+                  const SizedBox(height: 24.0),
                   // Cashback Section
                   _buildCashbackSection(context),
                   const SizedBox(height: 20),
 
+                  // Add rewards section after user levels
+                  const SizedBox(height: 24.0),
+                  _buildRewardsSection(context),
+                  
+                  // Add proper spacing between Redeem Points and History sections
+                  const SizedBox(height: 32.0),
+
                   // History Section
                   _buildHistorySection(context, transactions),
                   const SizedBox(height: 30),
-
-                  // Bottom Navigation
-                  _buildBottomNavigation(),
-                  const SizedBox(height: 20),
                 ],
               ),
             ),
@@ -147,13 +159,51 @@ class LoyaltyDashboardScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const SizedBox(), // Empty spacer
-                  Text(
-                    'User levels details',
-                    style: TextStyle(
-                      color: Colors.blue.shade200,
-                      fontSize: 14,
-                      decoration: TextDecoration.underline,
-                    ),
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const LoyaltyPointsScreen(),
+                            ),
+                          );
+                        },
+                        child: Row(
+                          children: [
+                            const Text(
+                              'View Points',
+                              style: TextStyle(
+                                color: Colors.blue,
+                                fontSize: 14,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.arrow_forward,
+                              color: Colors.blue.shade200,
+                              size: 14,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      GestureDetector(
+                        onTap: () {
+                          // Show level details
+                        },
+                        child: Text(
+                          'User levels details',
+                          style: TextStyle(
+                            color: Colors.blue.shade200,
+                            fontSize: 14,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -485,26 +535,171 @@ class LoyaltyDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomNavigation() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceAround,
+  Widget _buildRewardsSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildNavItem(Icons.home, isSelected: true),
-        _buildNavItem(Icons.account_balance_wallet),
-        _buildNavItem(Icons.shopping_bag),
-        _buildNavItem(Icons.more_horiz),
+        const Text(
+          'Redeem Your Points',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 16),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _buildRewardOption(
+                context,
+                'Discount Voucher',
+                '200 pts',
+                '₱50 off',
+                Icons.local_offer,
+                Colors.orangeAccent,
+              ),
+              const SizedBox(width: 12),
+              _buildRewardOption(
+                context,
+                'Free Delivery',
+                '350 pts',
+                'On your next order',
+                Icons.delivery_dining,
+                Colors.greenAccent,
+              ),
+              const SizedBox(width: 12),
+              _buildRewardOption(
+                context,
+                'Cash Rebate',
+                '500 pts',
+                '₱100 cashback',
+                Icons.attach_money,
+                Colors.purpleAccent,
+              ),
+              const SizedBox(width: 12),
+              _buildRewardOption(
+                context,
+                'Premium Status',
+                '1000 pts',
+                '30 days of VIP benefits',
+                Icons.star,
+                Colors.amberAccent,
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
 
-  Widget _buildNavItem(IconData icon, {bool isSelected = false}) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isSelected ? Colors.white.withOpacity(0.1) : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
+  Widget _buildRewardOption(
+    BuildContext context,
+    String title,
+    String points,
+    String description,
+    IconData icon,
+    Color color,
+  ) {
+    // Extract points value from string (e.g., "200 pts" -> 200)
+    final pointsValue = int.parse(points.split(' ')[0]);
+    
+    return SimpleGlassCard(
+      width: 150,
+      // Increase height to prevent overflow
+      height: 210,
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            backgroundColor: color.withOpacity(0.2),
+            radius: 20,
+            child: Icon(
+              icon,
+              color: color,
+              size: 20,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            points,
+            style: const TextStyle(
+              color: Colors.amberAccent,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            description,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const Spacer(),
+          Center(
+            child: BlocBuilder<LoyaltyBloc, LoyaltyState>(
+              builder: (context, state) {
+                bool isEnoughPoints = false;
+                
+                if (state is LoyaltyLoaded) {
+                  isEnoughPoints = state.points.currentPoints >= pointsValue;
+                }
+                
+                return SizedBox(
+                  width: double.infinity,
+                  height: 36,
+                  child: ElevatedButton(
+                    onPressed: isEnoughPoints ? () {
+                      // Use RedeemPoints event
+                      context.read<LoyaltyBloc>().add(
+                        RedeemPoints(
+                          rewardTitle: title,
+                          pointsRequired: pointsValue,
+                          rewardDescription: description,
+                        ),
+                      );
+                      
+                      // Show a snackbar
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Redeeming $title for $points'),
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    } : null, // Disable if not enough points
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isEnoughPoints ? color.withOpacity(0.8) : Colors.grey.withOpacity(0.5),
+                      // Optimize padding to fit better
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: const Size(double.infinity, 30),
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                    child: Text(isEnoughPoints ? 'Redeem' : 'Not Enough'),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
-      child: Icon(icon, color: Colors.white, size: 24),
     );
   }
 }
