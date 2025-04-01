@@ -1,0 +1,35 @@
+# How to Fix Flutter Version Issues
+
+Whenever you upgrade Flutter or face Gradle errors related to Flutter path, follow these steps:
+
+1. Check your Flutter version:
+   ```
+   flutter --version
+   ```
+
+2. Verify the Flutter SDK path in your project:
+   ```
+   cat android/local.properties | grep flutter.sdk
+   ```
+
+3. If the versions don't match, update local.properties:
+   ```
+   # Replace X.X.X with your current Flutter version
+   sed -i '' 's|flutter.sdk=.*|flutter.sdk=/opt/homebrew/Caskroom/flutter/X.X.X/flutter|' android/local.properties
+   ```
+
+4. If problems persist, recreate the Android files:
+   ```
+   flutter clean
+   flutter create --platforms=android .
+   ```
+
+5. For a complete reset:
+   ```
+   flutter clean
+   rm -rf ~/.gradle/daemon
+   rm -rf android/.gradle
+   flutter create --platforms=android .
+   ```
+
+These steps should resolve most Flutter version-related Gradle issues. 
