@@ -6,8 +6,7 @@ import 'package:loyalty_app/core/di/dependency_injection.dart';
 import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/features/loyalty/api/woocommerce_sync_service.dart';
 import 'package:loyalty_app/features/loyalty/bloc/loyalty_bloc.dart';
-import 'package:loyalty_app/features/loyalty/ui/screens/loyalty_dashboard_screen.dart';
-import 'package:flutter/foundation.dart';
+import 'package:loyalty_app/core/navigation/main_navigation.dart';
 
 void main() {
   // Ensure Flutter is initialized
@@ -35,9 +34,6 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Get required services
-    final loyaltyBloc = getIt<LoyaltyBloc>();
-
     // Start WooCommerce sync service with a delay to avoid blocking app startup
     // This will run after the app is visible to the user
     Future.delayed(const Duration(seconds: 2), () {
@@ -52,10 +48,8 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Loyalty App',
       theme: AppTheme.darkTheme,
-      home: BlocProvider.value(
-        value: loyaltyBloc,
-        child: const LoyaltyDashboardScreen(),
-      ),
+      debugShowCheckedModeBanner: false,
+      home: const MainNavigation(),
     );
   }
 }

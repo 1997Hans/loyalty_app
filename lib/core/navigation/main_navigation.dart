@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:loyalty_app/core/di/dependency_injection.dart';
 import 'package:loyalty_app/features/loyalty/bloc/loyalty_bloc.dart';
-import 'package:loyalty_app/features/loyalty/data/repositories/loyalty_repository.dart';
-import 'package:loyalty_app/features/loyalty/data/services/loyalty_service_impl.dart';
-import 'package:loyalty_app/features/loyalty/domain/models/loyalty_points.dart';
 import 'package:loyalty_app/features/loyalty/ui/screens/loyalty_dashboard_screen.dart';
 import 'package:loyalty_app/features/loyalty/ui/screens/loyalty_points_screen.dart';
 import 'package:loyalty_app/features/loyalty/ui/screens/points_redemption_screen.dart';
+import 'package:loyalty_app/features/loyalty/ui/screens/woocommerce_sync_screen.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -43,17 +42,8 @@ class _MainNavigationState extends State<MainNavigation> {
         // If we're on the home tab and at root, let system handle the back button
         return isFirstRouteInCurrentTab;
       },
-      child: MultiBlocProvider(
-        providers: [
-          BlocProvider<LoyaltyBloc>(
-            create: (context) {
-              final repository = LoyaltyRepository();
-              return LoyaltyBloc(
-                loyaltyService: LoyaltyServiceImpl(repository: repository),
-              )..add(LoadPointsTransactions());
-            },
-          ),
-        ],
+      child: BlocProvider<LoyaltyBloc>.value(
+        value: getIt<LoyaltyBloc>()..add(LoadPointsTransactions()),
         child: Scaffold(
           body: Stack(
             children: [
@@ -115,7 +105,7 @@ class _MainNavigationState extends State<MainNavigation> {
                       BottomNavigationBarItem(
                         icon: Icon(Icons.person_outline),
                         activeIcon: Icon(Icons.person),
-                        label: 'Profile',
+                        label: 'Settings',
                       ),
                     ],
                   ),
@@ -168,15 +158,8 @@ class _MainNavigationState extends State<MainNavigation> {
                     },
                   );
                 case 3:
-                  // Profile page placeholder
-                  return const Scaffold(
-                    body: Center(
-                      child: Text(
-                        'Profile',
-                        style: TextStyle(color: Colors.white, fontSize: 24),
-                      ),
-                    ),
-                  );
+                  // Settings page with WooCommerce sync
+                  return const WooCommerceSyncScreen();
                 default:
                   return const LoyaltyDashboardScreen();
               }
