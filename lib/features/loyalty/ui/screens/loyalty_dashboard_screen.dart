@@ -92,9 +92,31 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
           );
         },
         builder: (context, state) {
-          // Show loading indicator only on initial load
-          if (state.status == bloc.LoyaltyStatus.initial) {
-            return const Center(child: CircularProgressIndicator());
+          // If the state is in an error state, show error message
+          if (state.status == bloc.LoyaltyStatus.error) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                  const SizedBox(height: 16),
+                  Text(
+                    state.errorMessage ?? 'An error occurred',
+                    style: const TextStyle(color: Colors.white),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      context.read<bloc.LoyaltyBloc>().add(
+                        bloc.LoadPointsTransactions(),
+                      );
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
           }
 
           // Check if no loyalty points are available - this means the user has no points yet

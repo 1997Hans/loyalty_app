@@ -66,3 +66,8 @@ class ClearRedemptionStatus extends LoyaltyEvent {
 class CheckExpiringPoints extends LoyaltyEvent {
   const CheckExpiringPoints();
 }
+
+/// Event to reset loyalty data when a user logs out
+class ResetLoyaltyData extends LoyaltyEvent {
+  const ResetLoyaltyData();
+}

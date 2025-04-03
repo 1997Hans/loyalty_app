@@ -168,10 +168,6 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen> {
                 'PointsRedemptionScreen: Building with state ${state.status}',
               );
 
-              if (state.status == LoyaltyStatus.initial) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
               // Show the UI regardless of points, with disabled buttons when points are insufficient
               final availablePoints = widget.availablePoints;
 

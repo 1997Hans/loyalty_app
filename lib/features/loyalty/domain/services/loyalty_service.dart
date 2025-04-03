@@ -32,6 +32,9 @@ abstract class LoyaltyService {
   /// Calculate the monetary value of points
   double calculatePointsValue(int points);
 
+  /// Reset all data (used during logout)
+  void resetData();
+
   /// Cleanup resources
   void dispose();
 }

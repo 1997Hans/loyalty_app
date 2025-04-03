@@ -185,4 +185,19 @@ class LoyaltyRepository {
     _pointsStreamController.close();
     _transactionsStreamController.close();
   }
+
+  /// Reset all data when a user logs out
+  Future<void> resetData() async {
+    // Reset points to initial empty state
+    _loyaltyPoints = LoyaltyPoints.initial();
+
+    // Clear all transactions
+    _transactions.clear();
+
+    // Notify listeners of the reset
+    _pointsStreamController.add(_loyaltyPoints);
+    _transactionsStreamController.add(_transactions);
+
+    print('Loyalty repository data reset completed');
+  }
 }

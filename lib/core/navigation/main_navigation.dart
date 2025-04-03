@@ -71,74 +71,108 @@ class _MainNavigationState extends State<MainNavigation> {
   Widget build(BuildContext context) {
     return BlocProvider.value(
       value: _loyaltyBloc,
-      child: Scaffold(
-        // Use a simple body selection rather than IndexedStack to avoid state issues
-        body: _buildBody(),
-        bottomNavigationBar: Container(
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.7),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.3),
-                blurRadius: 10,
-                offset: const Offset(0, -5),
-              ),
-            ],
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 8.0,
-                vertical: 8.0,
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20.0),
-                child: BottomNavigationBar(
-                  currentIndex: _selectedIndex,
-                  onTap: (index) {
-                    if (_selectedIndex != index) {
-                      setState(() {
-                        _selectedIndex = index;
-                      });
+      child: BlocBuilder<LoyaltyBloc, LoyaltyState>(
+        builder: (context, state) {
+          // Show loading indicator over the entire screen if data is still loading initially
+          // This ensures user won't see empty screens
+          final showLoadingOverlay =
+              state.status == LoyaltyStatus.initial ||
+              state.status == LoyaltyStatus.loading;
 
-                      // Load appropriate data when tab changes
-                      _loadDataForCurrentTab();
-                    }
-                  },
-                  type: BottomNavigationBarType.fixed,
-                  backgroundColor: const Color(0xFF1E1E1E),
-                  selectedItemColor: Colors.amberAccent,
-                  unselectedItemColor: Colors.grey,
-                  showSelectedLabels: true,
-                  showUnselectedLabels: true,
-                  elevation: 0,
-                  items: const [
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.home_outlined),
-                      activeIcon: Icon(Icons.home),
-                      label: 'Home',
+          return Scaffold(
+            // Overlay the loading indicator when necessary
+            body: Stack(
+              children: [
+                // Main content (will be below the loading overlay if shown)
+                _buildBody(),
+
+                // Loading overlay that covers the screen while data syncs
+                if (showLoadingOverlay)
+                  Container(
+                    color: Colors.black.withOpacity(0.7),
+                    child: const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text(
+                            'Syncing loyalty data...',
+                            style: TextStyle(color: Colors.white, fontSize: 16),
+                          ),
+                        ],
+                      ),
                     ),
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.workspace_premium_outlined),
-                      activeIcon: Icon(Icons.workspace_premium),
-                      label: 'Points',
+                  ),
+              ],
+            ),
+            bottomNavigationBar: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.7),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.3),
+                    blurRadius: 10,
+                    offset: const Offset(0, -5),
+                  ),
+                ],
+              ),
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8.0,
+                    vertical: 8.0,
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20.0),
+                    child: BottomNavigationBar(
+                      currentIndex: _selectedIndex,
+                      onTap: (index) {
+                        if (_selectedIndex != index) {
+                          setState(() {
+                            _selectedIndex = index;
+                          });
+
+                          // Load appropriate data when tab changes
+                          _loadDataForCurrentTab();
+                        }
+                      },
+                      type: BottomNavigationBarType.fixed,
+                      backgroundColor: const Color(0xFF1E1E1E),
+                      selectedItemColor: Colors.amberAccent,
+                      unselectedItemColor: Colors.grey,
+                      showSelectedLabels: true,
+                      showUnselectedLabels: true,
+                      elevation: 0,
+                      items: const [
+                        BottomNavigationBarItem(
+                          icon: Icon(Icons.home_outlined),
+                          activeIcon: Icon(Icons.home),
+                          label: 'Home',
+                        ),
+                        BottomNavigationBarItem(
+                          icon: Icon(Icons.workspace_premium_outlined),
+                          activeIcon: Icon(Icons.workspace_premium),
+                          label: 'Points',
+                        ),
+                        BottomNavigationBarItem(
+                          icon: Icon(Icons.redeem_outlined),
+                          activeIcon: Icon(Icons.redeem),
+                          label: 'Rewards',
+                        ),
+                        BottomNavigationBarItem(
+                          icon: Icon(Icons.person_outline),
+                          activeIcon: Icon(Icons.person),
+                          label: 'Profile',
+                        ),
+                      ],
                     ),
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.redeem_outlined),
-                      activeIcon: Icon(Icons.redeem),
-                      label: 'Rewards',
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.person_outline),
-                      activeIcon: Icon(Icons.person),
-                      label: 'Profile',
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

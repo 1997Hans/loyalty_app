@@ -30,6 +30,7 @@ class LoyaltyBloc extends Bloc<LoyaltyEvent, LoyaltyState> {
     on<ClearRedemptionStatus>(_onClearRedemptionStatus);
     on<CheckExpiringPoints>(_onCheckExpiringPoints);
     on<SetContext>(_onSetContext);
+    on<ResetLoyaltyData>(_onResetLoyaltyData);
 
     // Subscribe to points updates
     _subscribeToPointsUpdates();
@@ -174,21 +175,32 @@ class LoyaltyBloc extends Bloc<LoyaltyEvent, LoyaltyState> {
     LoadPointsTransactions event,
     Emitter<LoyaltyState> emit,
   ) async {
+    // Always emit loading state to ensure UI shows loading indicator
     emit(state.copyWith(status: LoyaltyStatus.loading));
 
     try {
+      // Load both points and transactions to ensure data consistency
+      final points = await _loyaltyService.getLoyaltyPoints();
       final transactions = await _loyaltyService.getTransactions();
+
+      // Only emit loaded state when both data sources have successfully loaded
       emit(
         state.copyWith(
           status: LoyaltyStatus.loaded,
+          loyaltyPoints: points,
           transactions: transactions,
         ),
       );
+
+      // Show notification if context is available and there are new transactions
+      if (state.context != null && transactions.isNotEmpty) {
+        // Additional notifications could be shown here if needed
+      }
     } catch (e) {
       emit(
         state.copyWith(
           status: LoyaltyStatus.error,
-          errorMessage: 'Failed to load transactions: ${e.toString()}',
+          errorMessage: 'Failed to sync data: ${e.toString()}',
         ),
       );
     }
@@ -220,6 +232,24 @@ class LoyaltyBloc extends Bloc<LoyaltyEvent, LoyaltyState> {
       // Silently handle expiring points check error
       print('Error checking expiring points: ${e.toString()}');
     }
+  }
+
+  Future<void> _onResetLoyaltyData(
+    ResetLoyaltyData event,
+    Emitter<LoyaltyState> emit,
+  ) async {
+    // Reset to initial state to clear all data from previous user
+    print('Resetting loyalty data due to user logout');
+    emit(LoyaltyState.initial());
+
+    // Reset data in the service layer
+    _loyaltyService.resetData();
+
+    // Cancel any active subscriptions
+    _loyaltyPointsSubscription?.cancel();
+
+    // Re-establish subscription but it won't have data until next login
+    _subscribeToPointsUpdates();
   }
 
   void _subscribeToPointsUpdates() {

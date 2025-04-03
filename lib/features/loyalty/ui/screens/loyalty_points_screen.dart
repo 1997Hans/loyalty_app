@@ -46,15 +46,17 @@ class _LoyaltyPointsScreenState extends State<LoyaltyPointsScreen> {
           builder: (context, state) {
             print('LoyaltyPointsScreen: Building with state ${state.status}');
 
-            if (state.status == LoyaltyStatus.initial) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
             if (state.status == LoyaltyStatus.error) {
               return Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    const Icon(
+                      Icons.error_outline,
+                      color: Colors.red,
+                      size: 48,
+                    ),
+                    const SizedBox(height: 16),
                     Text(
                       state.errorMessage ?? 'An error occurred',
                       style: const TextStyle(color: Colors.white),

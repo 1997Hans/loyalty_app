@@ -149,6 +149,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
           // Trigger initial data loading
           print('Authenticated: Initializing loyalty data for user ${user.id}');
+
+          // Force loyalty data to reload immediately
+          final loyaltyBloc = getIt<LoyaltyBloc>();
+          loyaltyBloc.add(LoadPointsTransactions());
         }
       } catch (e) {
         print('Error initializing user data: $e');
@@ -225,8 +229,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final syncService = getIt<WooCommerceSyncService>();
       syncService.customerId = null;
+
+      // Reset loyalty data to prevent data leakage between users
+      final loyaltyBloc = getIt<LoyaltyBloc>();
+      loyaltyBloc.add(const ResetLoyaltyData());
     } catch (e) {
-      print('Error clearing customer ID: $e');
+      print('Error clearing user data: $e');
     }
 
     await _authService.logout();

@@ -138,4 +138,20 @@ class LoyaltyServiceImpl implements LoyaltyService {
   void dispose() {
     _pointsStreamController.close();
   }
+
+  /// Reset all data when a user logs out
+  void resetData() async {
+    try {
+      // Clear cached data in the repository
+      await _repository.resetData();
+
+      // Reinitialize the stream with empty data
+      final initialPoints = LoyaltyPoints.initial();
+      _pointsStreamController.add(initialPoints);
+
+      print('Loyalty service data reset completed');
+    } catch (e) {
+      print('Error resetting loyalty data: $e');
+    }
+  }
 }
