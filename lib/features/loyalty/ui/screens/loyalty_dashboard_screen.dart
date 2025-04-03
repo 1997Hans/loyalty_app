@@ -423,7 +423,7 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
         ),
         const SizedBox(height: 8),
         SizedBox(
-          height: 130,
+          height: 160,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: options.length,
@@ -466,16 +466,33 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
                             style: TextStyle(
                               color: isDisabled ? Colors.white30 : Colors.white,
                               fontWeight: FontWeight.bold,
+                              fontSize: 13,
                             ),
                             textAlign: TextAlign.center,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${option.points} pts',
-                            style: TextStyle(
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
                               color:
-                                  isDisabled ? Colors.white30 : Colors.white70,
-                              fontSize: 12,
+                                  isDisabled
+                                      ? Colors.grey.withOpacity(0.2)
+                                      : Colors.amber.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              '${option.points} pts',
+                              style: TextStyle(
+                                color:
+                                    isDisabled ? Colors.white30 : Colors.amber,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
