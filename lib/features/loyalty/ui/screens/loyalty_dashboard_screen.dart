@@ -105,7 +105,61 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
 
             final loyaltyPoints = points;
             if (loyaltyPoints == null) {
-              return const Center(child: Text('No loyalty data available'));
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(20.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.sync_problem,
+                        size: 64,
+                        color: Colors.grey,
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'No loyalty data available',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Your loyalty points will appear here after you make purchases in the store.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          context.read<bloc.LoyaltyBloc>().add(
+                            bloc.LoadPointsTransactions(),
+                          );
+                        },
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Refresh'),
+                      ),
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: () {
+                          // Navigate to the Settings tab to set up WooCommerce
+                          int settingsIndex = 3; // Index of the Settings tab
+                          // Use this approach if your navigation is handled via a tab controller
+                          // that's accessible from this context
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder:
+                                  (context) => const WooCommerceSyncScreen(),
+                            ),
+                          );
+                        },
+                        child: const Text('Set Up WooCommerce Integration'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
             }
 
             return _DashboardContent(

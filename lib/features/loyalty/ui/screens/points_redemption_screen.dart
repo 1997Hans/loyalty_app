@@ -6,6 +6,7 @@ import 'package:loyalty_app/core/constants/app_config.dart';
 import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/core/utils/gradient_background.dart';
 import 'package:loyalty_app/features/loyalty/bloc/loyalty_bloc.dart';
+import 'package:loyalty_app/features/loyalty/ui/screens/woocommerce_sync_screen.dart';
 
 class PointsRedemptionScreen extends StatefulWidget {
   final int availablePoints;
@@ -33,6 +34,11 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen> {
   void initState() {
     super.initState();
     _pointsController.addListener(_updatePointsToRedeem);
+
+    // Ensure we have fresh data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<LoyaltyBloc>().add(LoadPointsTransactions());
+    });
   }
 
   @override
@@ -158,6 +164,20 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen> {
                     previous.status != current.status ||
                     previous.loyaltyPoints != current.loyaltyPoints,
             builder: (context, state) {
+              print(
+                'PointsRedemptionScreen: Building with state ${state.status}',
+              );
+
+              if (state.status == LoyaltyStatus.initial ||
+                  state.status == LoyaltyStatus.loading) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              // Show special UI if user has no points
+              if (widget.availablePoints <= 0 || state.loyaltyPoints == null) {
+                return _buildNoPointsAvailable();
+              }
+
               return SingleChildScrollView(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -183,6 +203,66 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen> {
             },
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildNoPointsAvailable() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.card_giftcard, color: Colors.amber, size: 80),
+          const SizedBox(height: 24),
+          const Text(
+            'No Points Available',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 12),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              'You need loyalty points to redeem rewards',
+              style: TextStyle(color: Colors.white, fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 32),
+            child: Text(
+              'Points are earned when you make purchases through our WooCommerce store',
+              style: TextStyle(color: Colors.white70),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 32),
+          ElevatedButton(
+            onPressed: () {
+              context.read<LoyaltyBloc>().add(LoadPointsTransactions());
+            },
+            child: const Text('Refresh'),
+          ),
+          const SizedBox(height: 16),
+          TextButton.icon(
+            icon: const Icon(Icons.settings),
+            label: const Text('Go to Profile Settings'),
+            onPressed: () {
+              // Navigate to tab 3 (Profile/Settings)
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const WooCommerceSyncScreen(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

@@ -11,12 +11,19 @@ class WooCommerceClient {
   final String _baseUrl = AppConfig.woocommerceBaseUrl;
   final String _consumerKey = AppConfig.woocommerceConsumerKey;
   final String _consumerSecret = AppConfig.woocommerceConsumerSecret;
+  final String _authString;
 
   // Track connection state
   bool _isConnected = false;
   String? _lastError;
 
-  WooCommerceClient() : _dio = Dio() {
+  WooCommerceClient()
+    : _dio = Dio(),
+      _authString = base64Encode(
+        utf8.encode(
+          '${AppConfig.woocommerceConsumerKey}:${AppConfig.woocommerceConsumerSecret}',
+        ),
+      ) {
     _dio.options.connectTimeout = const Duration(seconds: 10);
     _dio.options.receiveTimeout = const Duration(seconds: 10);
   }
@@ -32,10 +39,7 @@ class WooCommerceClient {
     try {
       final response = await _dio.get(
         '$_baseUrl/system_status',
-        queryParameters: {
-          'consumer_key': _consumerKey,
-          'consumer_secret': _consumerSecret,
-        },
+        options: Options(headers: {'Authorization': 'Basic $_authString'}),
       );
 
       _isConnected = response.statusCode == 200;
@@ -57,11 +61,8 @@ class WooCommerceClient {
     try {
       final response = await _dio.get(
         '$_baseUrl/orders',
-        queryParameters: {
-          'customer': customerId,
-          'consumer_key': _consumerKey,
-          'consumer_secret': _consumerSecret,
-        },
+        queryParameters: {'customer': customerId},
+        options: Options(headers: {'Authorization': 'Basic $_authString'}),
       );
 
       _isConnected = true;
@@ -90,14 +91,12 @@ class WooCommerceClient {
   /// Fetch a specific order by ID
   Future<Map<String, dynamic>> getOrder(int orderId) async {
     try {
-      final uri = Uri.parse('$_baseUrl/orders/$orderId').replace(
-        queryParameters: {
-          'consumer_key': _consumerKey,
-          'consumer_secret': _consumerSecret,
-        },
-      );
+      final uri = Uri.parse('$_baseUrl/orders/$orderId');
 
-      final response = await http.get(uri);
+      final response = await http.get(
+        uri,
+        headers: {'Authorization': 'Basic $_authString'},
+      );
 
       if (response.statusCode == 200) {
         return json.decode(response.body);
@@ -119,14 +118,12 @@ class WooCommerceClient {
   }) async {
     try {
       // First, get customer data to retrieve existing points
-      final customerUri = Uri.parse('$_baseUrl/customers/$customerId').replace(
-        queryParameters: {
-          'consumer_key': _consumerKey,
-          'consumer_secret': _consumerSecret,
-        },
-      );
+      final customerUri = Uri.parse('$_baseUrl/customers/$customerId');
 
-      final customerResponse = await http.get(customerUri);
+      final customerResponse = await http.get(
+        customerUri,
+        headers: {'Authorization': 'Basic $_authString'},
+      );
 
       if (customerResponse.statusCode != 200) {
         throw Exception(
@@ -169,16 +166,14 @@ class WooCommerceClient {
       };
 
       // Update customer metadata
-      final updateUri = Uri.parse('$_baseUrl/customers/$customerId').replace(
-        queryParameters: {
-          'consumer_key': _consumerKey,
-          'consumer_secret': _consumerSecret,
-        },
-      );
+      final updateUri = Uri.parse('$_baseUrl/customers/$customerId');
 
       final updateResponse = await http.put(
         updateUri,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Basic $_authString',
+        },
         body: json.encode(updateData),
       );
 
@@ -191,14 +186,12 @@ class WooCommerceClient {
   /// Get the current loyalty points for a customer
   Future<int> getCustomerLoyaltyPoints(int customerId) async {
     try {
-      final uri = Uri.parse('$_baseUrl/customers/$customerId').replace(
-        queryParameters: {
-          'consumer_key': _consumerKey,
-          'consumer_secret': _consumerSecret,
-        },
-      );
+      final uri = Uri.parse('$_baseUrl/customers/$customerId');
 
-      final response = await http.get(uri);
+      final response = await http.get(
+        uri,
+        headers: {'Authorization': 'Basic $_authString'},
+      );
 
       if (response.statusCode == 200) {
         final customerData = json.decode(response.body);
@@ -226,10 +219,7 @@ class WooCommerceClient {
     try {
       final response = await _dio.get(
         '$_baseUrl/customers/$customerId',
-        queryParameters: {
-          'consumer_key': _consumerKey,
-          'consumer_secret': _consumerSecret,
-        },
+        options: Options(headers: {'Authorization': 'Basic $_authString'}),
       );
 
       _isConnected = true;

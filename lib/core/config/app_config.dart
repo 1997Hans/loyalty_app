@@ -23,6 +23,16 @@ class AppConfig {
   static const String woocommerceConsumerSecret =
       "cs_71d319df94716ae6b0071a997e71f9f9213ffc24";
 
+  /// WordPress API Configuration
+  static const String wordpressBaseUrl = "https://sandbox.skyrocket.sg/wp-json";
+
+  /// WordPress Admin Credentials
+  /// TODO: Replace these with actual admin credentials when available
+  static const String adminUsername =
+      "admin_hans"; // Admin user that can create users
+  static const String adminPassword =
+      "Tp6%N^C94odKQmzC"; // Regular admin password for authentication
+
   /// WooCommerce Loyalty Points Configuration
   static const double woocommercePointsPerAmount =
       1.0; // 1 point per unit of currency

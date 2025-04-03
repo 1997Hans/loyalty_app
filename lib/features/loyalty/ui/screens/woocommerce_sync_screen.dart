@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:loyalty_app/core/common/widgets/simple_glass_card.dart';
 import 'package:loyalty_app/core/config/app_config.dart';
 import 'package:loyalty_app/core/di/dependency_injection.dart';
 import 'package:loyalty_app/core/utils/gradient_background.dart';
-import 'package:loyalty_app/features/loyalty/api/woocommerce_sync_service.dart';
+import 'package:loyalty_app/features/auth/bloc/auth_bloc.dart';
 import 'package:loyalty_app/features/loyalty/api/woocommerce_client.dart';
+import 'package:loyalty_app/features/loyalty/api/woocommerce_sync_service.dart';
+import 'package:loyalty_app/features/loyalty/bloc/loyalty_bloc.dart';
 
+/// Profile screen with user information and WooCommerce connection controls
 class WooCommerceSyncScreen extends StatefulWidget {
   const WooCommerceSyncScreen({super.key});
 
@@ -19,7 +23,10 @@ class _WooCommerceSyncScreenState extends State<WooCommerceSyncScreen> {
   bool _isAutoSyncEnabled = AppConfig.enableAutomaticPointsAward;
   bool _isSyncing = false;
   bool _isInitialized = false;
-  late WooCommerceSyncService _syncService;
+  late WooCommerceSyncService _wooCommerceSyncService;
+  final WooCommerceClient _client = getIt<WooCommerceClient>();
+  bool _isConnected = false;
+  String _statusText = 'Checking connection...';
 
   // API information for diagnostics
   final String _apiUrl = AppConfig.woocommerceBaseUrl;
@@ -29,21 +36,24 @@ class _WooCommerceSyncScreenState extends State<WooCommerceSyncScreen> {
   @override
   void initState() {
     super.initState();
-    _syncService = getIt<WooCommerceSyncService>();
+    _wooCommerceSyncService = getIt<WooCommerceSyncService>();
 
     // Initialize the controller with current ID if set
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Load current customer ID if available
-      if (_syncService.customerId != null) {
-        _customerIdController.text = _syncService.customerId.toString();
+      if (_wooCommerceSyncService.customerId != null) {
+        _customerIdController.text =
+            _wooCommerceSyncService.customerId.toString();
       }
       _subscribeToSyncStatus();
       _isInitialized = true;
     });
+
+    _checkConnection();
   }
 
   void _subscribeToSyncStatus() {
-    _syncService.syncStatus.listen((status) {
+    _wooCommerceSyncService.syncStatus.listen((status) {
       if (mounted) {
         setState(() {
           _syncLogs.add(status);
@@ -62,9 +72,9 @@ class _WooCommerceSyncScreenState extends State<WooCommerceSyncScreen> {
     });
 
     if (value) {
-      _syncService.startBackgroundSync();
+      _wooCommerceSyncService.startBackgroundSync();
     } else {
-      _syncService.stopBackgroundSync();
+      _wooCommerceSyncService.stopBackgroundSync();
     }
   }
 
@@ -76,10 +86,10 @@ class _WooCommerceSyncScreenState extends State<WooCommerceSyncScreen> {
     // Update customer ID if needed
     final customerId = int.tryParse(_customerIdController.text);
     if (customerId != null && customerId > 0) {
-      _syncService.customerId = customerId;
+      _wooCommerceSyncService.customerId = customerId;
     }
 
-    _syncService.syncWooCommerceOrders();
+    _wooCommerceSyncService.syncWooCommerceOrders();
   }
 
   void _clearLogs() {
@@ -230,205 +240,374 @@ class _WooCommerceSyncScreenState extends State<WooCommerceSyncScreen> {
     );
   }
 
+  Future<void> _checkConnection() async {
+    final isConnected = await _client.testConnection();
+    setState(() {
+      _isConnected = isConnected;
+      _statusText =
+          isConnected
+              ? 'Connected to WooCommerce'
+              : 'Not connected: ${_client.lastError ?? "Unknown error"}';
+    });
+  }
+
+  void _syncNow() async {
+    setState(() {
+      _isSyncing = true;
+    });
+
+    try {
+      await _wooCommerceSyncService.syncWooCommerceOrders();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Synchronization completed')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Sync failed: ${e.toString()}')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSyncing = false;
+        });
+      }
+    }
+  }
+
+  void _logout() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Confirm Logout'),
+            content: const Text('Are you sure you want to log out?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  context.read<AuthBloc>().add(const AuthLogout());
+                },
+                child: const Text('Logout'),
+              ),
+            ],
+          ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('WooCommerce Sync'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.info_outline),
-            onPressed: _showApiDetails,
-            tooltip: 'API Info',
+      appBar: AppBar(title: const Text('User Profile')),
+      body: GradientBackground(
+        child: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildUserProfileSection(),
+                const SizedBox(height: 24),
+                _buildWooCommerceSection(),
+                const SizedBox(height: 24),
+                _buildAppSettingsSection(),
+              ],
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _isSyncing ? null : _manualSync,
-            tooltip: 'Manual Sync',
+        ),
+      ),
+    );
+  }
+
+  // User profile section with account details
+  Widget _buildUserProfileSection() {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        if (state is AuthAuthenticated) {
+          final user = state.user;
+          return SimpleGlassCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 40,
+                      backgroundImage:
+                          user.avatarUrl != null
+                              ? NetworkImage(user.avatarUrl!)
+                              : null,
+                      child:
+                          user.avatarUrl == null
+                              ? const Icon(Icons.person, size: 40)
+                              : null,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            user.displayName,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '@${user.username}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            user.email,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.badge),
+                  title: const Text('Account Type'),
+                  subtitle: Text(
+                    user.roles.isNotEmpty ? user.roles.first : 'Customer',
+                  ),
+                ),
+                _buildLogoutButton(),
+              ],
+            ),
+          );
+        }
+        return const SimpleGlassCard(
+          child: Center(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text('Please log in to view your profile'),
+            ),
           ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            onPressed: _clearLogs,
-            tooltip: 'Clear Logs',
+        );
+      },
+    );
+  }
+
+  // WooCommerce integration section
+  Widget _buildWooCommerceSection() {
+    return SimpleGlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'WooCommerce Integration',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Link your store account to earn points automatically from purchases',
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+          const SizedBox(height: 16),
+          // Rest of the WooCommerce section
+          _buildCustomerIdField(),
+          const SizedBox(height: 16),
+          _buildWooCommerceButtons(),
+          const SizedBox(height: 16),
+          _buildConnectionStatus(),
+          const SizedBox(height: 8),
+          _buildSyncOptions(),
+        ],
+      ),
+    );
+  }
+
+  // App settings section
+  Widget _buildAppSettingsSection() {
+    return SimpleGlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'App Settings',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 16),
+          SwitchListTile(
+            title: const Text('Enable Notifications'),
+            subtitle: const Text(
+              'Receive updates about your points and rewards',
+            ),
+            value: true, // This would be connected to actual settings
+            onChanged: (value) {
+              // Implement notification settings
+            },
+          ),
+          const Divider(),
+          ListTile(
+            title: const Text('App Version'),
+            subtitle: const Text('1.0.0'),
+            trailing: const Icon(Icons.info_outline),
           ),
         ],
       ),
-      body: GradientBackground(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SimpleGlassCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'WooCommerce Integration',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      if (_isSyncing)
-                        const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Earn points automatically from your WooCommerce purchases.',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Points Rate: ${AppConfig.woocommercePointsPerAmount} points per ${AppConfig.currencySymbol}',
-                        style: const TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                      Switch(
-                        value: _isAutoSyncEnabled,
-                        onChanged: _toggleAutoSync,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextFormField(
-                          controller: _customerIdController,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Customer ID',
-                            border: OutlineInputBorder(),
-                            helperText: 'From WooCommerce',
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 12,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      ElevatedButton(
-                        onPressed: _isSyncing ? null : _manualSync,
-                        child: const Text('Sync Now'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _isAutoSyncEnabled ? 'Auto-sync is ON' : 'Auto-sync is OFF',
-                    style: TextStyle(
-                      color: _isAutoSyncEnabled ? Colors.green : Colors.grey,
-                      fontWeight: FontWeight.w500,
+    );
+  }
+
+  Widget _buildLogoutButton() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: TextButton.icon(
+        onPressed: _logout,
+        icon: const Icon(Icons.logout, color: Colors.red),
+        label: const Text('Logout', style: TextStyle(color: Colors.red)),
+      ),
+    );
+  }
+
+  Widget _buildCustomerIdField() {
+    return TextField(
+      controller: _customerIdController,
+      decoration: InputDecoration(
+        labelText: 'WooCommerce Customer ID',
+        hintText: 'Enter your WooCommerce customer ID',
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        suffixIcon: IconButton(
+          icon: const Icon(Icons.help_outline),
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder:
+                  (context) => AlertDialog(
+                    title: const Text('WooCommerce Customer ID'),
+                    content: const Text(
+                      'This is your customer ID from your WooCommerce store. '
+                      'You can find this in your account settings on the website.',
                     ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Text(
-                'Sync Logs',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: SimpleGlassCard(
-                child:
-                    _syncLogs.isEmpty
-                        ? const Center(
-                          child: Text(
-                            'No sync logs yet',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        )
-                        : ListView.builder(
-                          itemCount: _syncLogs.length,
-                          itemBuilder: (context, index) {
-                            final log = _syncLogs[index];
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 4.0,
-                              ),
-                              child: Text(
-                                log,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color:
-                                      log.contains('error') ||
-                                              log.contains('Failed')
-                                          ? Colors.red
-                                          : log.contains('Awarded') ||
-                                              log.contains('Success')
-                                          ? Colors.green
-                                          : null,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SimpleGlassCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Troubleshooting',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'If you encounter sync issues:',
-                    style: TextStyle(fontSize: 14),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    '1. Verify the Customer ID matches your WooCommerce user',
-                    style: TextStyle(fontSize: 13, color: Colors.grey),
-                  ),
-                  const Text(
-                    '2. Ensure your API keys have Read/Write permissions',
-                    style: TextStyle(fontSize: 13, color: Colors.grey),
-                  ),
-                  const Text(
-                    '3. Check that you have completed orders in WooCommerce',
-                    style: TextStyle(fontSize: 13, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: _isSyncing ? null : _testConnection,
-                        icon: const Icon(Icons.network_check),
-                        label: const Text('Test Connection'),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: _showApiDetails,
-                        icon: const Icon(Icons.settings),
-                        label: const Text('API Configuration'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Got it'),
                       ),
                     ],
                   ),
-                ],
-              ),
+            );
+          },
+        ),
+      ),
+      keyboardType: TextInputType.number,
+    );
+  }
+
+  Widget _buildWooCommerceButtons() {
+    return Row(
+      children: [
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: _testConnection,
+            icon: const Icon(Icons.wifi),
+            label: const Text('Test Connection'),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: ElevatedButton.icon(
+            onPressed: _syncNow,
+            icon: const Icon(Icons.sync),
+            label: const Text('Sync Now'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildConnectionStatus() {
+    final statusColor = _isConnected ? Colors.green : Colors.red;
+    final statusIcon = _isConnected ? Icons.check_circle : Icons.error;
+
+    return Card(
+      color: Colors.grey.shade900,
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Row(
+          children: [
+            Icon(statusIcon, color: statusColor),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(_statusText, style: TextStyle(color: statusColor)),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSyncOptions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SwitchListTile(
+          title: const Text('Automatic Points Sync'),
+          subtitle: const Text(
+            'Automatically sync and award points for completed orders',
+          ),
+          value: _isAutoSyncEnabled,
+          onChanged: _toggleAutoSync,
+        ),
+        if (_syncLogs.isNotEmpty) ...[
+          const Divider(),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Sync Logs',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              TextButton(onPressed: _clearLogs, child: const Text('Clear')),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Container(
+            height: 150,
+            padding: const EdgeInsets.all(8.0),
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade800),
+            ),
+            child: ListView.builder(
+              itemCount: _syncLogs.length,
+              reverse: true,
+              itemBuilder: (context, index) {
+                return Text(
+                  _syncLogs[index],
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                    fontFamily: 'monospace',
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ],
     );
   }
 

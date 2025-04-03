@@ -26,8 +26,45 @@ class _MainNavigationState extends State<MainNavigation> {
     // Get the bloc instance once and use it consistently
     _loyaltyBloc = getIt<LoyaltyBloc>();
 
-    // Load initial data
+    // Trigger initial data loading immediately
+    _loadInitialData();
+  }
+
+  // Load all initial data when app starts
+  void _loadInitialData() {
+    print('MainNavigation: Loading initial data');
     _loyaltyBloc.add(LoadPointsTransactions());
+
+    // Additional initialization can be added here
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // This will run after the first frame is rendered
+      print(
+        'MainNavigation: First frame rendered, checking for additional data to load',
+      );
+
+      // Ensure data is loaded for current tab
+      _loadDataForCurrentTab();
+    });
+  }
+
+  // Load appropriate data based on the selected tab
+  void _loadDataForCurrentTab() {
+    print('Loading data for tab $_selectedIndex');
+
+    switch (_selectedIndex) {
+      case 0: // Dashboard
+        _loyaltyBloc.add(LoadPointsTransactions());
+        break;
+      case 1: // Points history
+        _loyaltyBloc.add(LoadPointsTransactions());
+        break;
+      case 2: // Rewards
+        _loyaltyBloc.add(LoadPointsTransactions());
+        break;
+      case 3: // Profile
+        // No specific data needs to be loaded
+        break;
+    }
   }
 
   @override
@@ -59,9 +96,14 @@ class _MainNavigationState extends State<MainNavigation> {
                 child: BottomNavigationBar(
                   currentIndex: _selectedIndex,
                   onTap: (index) {
-                    setState(() {
-                      _selectedIndex = index;
-                    });
+                    if (_selectedIndex != index) {
+                      setState(() {
+                        _selectedIndex = index;
+                      });
+
+                      // Load appropriate data when tab changes
+                      _loadDataForCurrentTab();
+                    }
                   },
                   type: BottomNavigationBarType.fixed,
                   backgroundColor: const Color(0xFF1E1E1E),
@@ -87,9 +129,9 @@ class _MainNavigationState extends State<MainNavigation> {
                       label: 'Rewards',
                     ),
                     BottomNavigationBarItem(
-                      icon: Icon(Icons.settings_outlined),
-                      activeIcon: Icon(Icons.settings),
-                      label: 'Settings',
+                      icon: Icon(Icons.person_outline),
+                      activeIcon: Icon(Icons.person),
+                      label: 'Profile',
                     ),
                   ],
                 ),
@@ -111,6 +153,7 @@ class _MainNavigationState extends State<MainNavigation> {
       case 2:
         return BlocBuilder<LoyaltyBloc, LoyaltyState>(
           builder: (context, state) {
+            print('Building rewards screen with state: ${state.status}');
             int points = 0;
             if (state.status == LoyaltyStatus.loaded &&
                 state.loyaltyPoints != null) {

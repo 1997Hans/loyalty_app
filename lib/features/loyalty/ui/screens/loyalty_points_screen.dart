@@ -9,6 +9,7 @@ import 'package:loyalty_app/features/loyalty/bloc/loyalty_bloc.dart';
 import 'package:loyalty_app/features/loyalty/domain/models/loyalty_points.dart';
 import 'package:loyalty_app/features/loyalty/domain/models/points_transaction.dart';
 import 'package:loyalty_app/features/loyalty/ui/screens/points_redemption_screen.dart';
+import 'package:loyalty_app/features/loyalty/ui/screens/woocommerce_sync_screen.dart';
 import 'package:loyalty_app/features/loyalty/ui/widgets/points_transaction_item.dart';
 import 'package:loyalty_app/features/loyalty/ui/widgets/loyalty_transaction_item.dart'
     as loyalty;
@@ -43,6 +44,8 @@ class _LoyaltyPointsScreenState extends State<LoyaltyPointsScreen> {
       body: GradientBackground(
         child: BlocBuilder<LoyaltyBloc, LoyaltyState>(
           builder: (context, state) {
+            print('LoyaltyPointsScreen: Building with state ${state.status}');
+
             if (state.status == LoyaltyStatus.initial ||
                 state.status == LoyaltyStatus.loading) {
               return const Center(child: CircularProgressIndicator());
@@ -50,18 +53,81 @@ class _LoyaltyPointsScreenState extends State<LoyaltyPointsScreen> {
 
             if (state.status == LoyaltyStatus.error) {
               return Center(
-                child: Text(
-                  state.errorMessage ?? 'An error occurred',
-                  style: const TextStyle(color: Colors.white),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      state.errorMessage ?? 'An error occurred',
+                      style: const TextStyle(color: Colors.white),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () {
+                        context.read<LoyaltyBloc>().add(
+                          LoadPointsTransactions(),
+                        );
+                      },
+                      child: const Text('Retry'),
+                    ),
+                  ],
                 ),
               );
             }
 
             if (state.loyaltyPoints == null) {
-              return const Center(
-                child: Text(
-                  'No loyalty data available',
-                  style: TextStyle(color: Colors.white),
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.history_toggle_off,
+                      color: Colors.amber,
+                      size: 80,
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'No loyalty data available',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        'Points will appear here after you make purchases through the WooCommerce store',
+                        style: TextStyle(color: Colors.white70),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      onPressed: () {
+                        context.read<LoyaltyBloc>().add(
+                          LoadPointsTransactions(),
+                        );
+                      },
+                      child: const Text('Refresh'),
+                    ),
+                    const SizedBox(height: 16),
+                    TextButton.icon(
+                      icon: const Icon(Icons.settings),
+                      label: const Text('Go to WooCommerce Settings'),
+                      onPressed: () {
+                        // Navigate to tab 3 (Profile/Settings)
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const WooCommerceSyncScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               );
             }

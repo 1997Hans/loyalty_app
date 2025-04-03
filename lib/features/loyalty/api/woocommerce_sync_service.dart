@@ -224,6 +224,11 @@ class WooCommerceSyncService {
     }
   }
 
+  /// Alias for syncWooCommerceOrders to match method name being called in the code
+  Future<void> syncPoints() async {
+    return syncWooCommerceOrders();
+  }
+
   /// Dispose resources
   void dispose() {
     if (!_disposed) {
