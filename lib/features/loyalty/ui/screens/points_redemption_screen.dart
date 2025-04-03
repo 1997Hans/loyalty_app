@@ -171,70 +171,7 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen> {
               // Show the UI regardless of points, with disabled buttons when points are insufficient
               final availablePoints = widget.availablePoints;
 
-              // If there are no points available, show a proper message instead of a form with zeros
-              if (availablePoints <= 0) {
-                return SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SimpleGlassCard(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24.0),
-                            child: Column(
-                              children: [
-                                const Icon(
-                                  Icons.card_giftcard,
-                                  size: 64,
-                                  color: Colors.amber,
-                                ),
-                                const SizedBox(height: 24),
-                                const Text(
-                                  'No Points Available',
-                                  style: TextStyle(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 16),
-                                const Text(
-                                  'You need loyalty points to redeem rewards',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                  ),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 8),
-                                const Text(
-                                  'Points are earned when you make purchases through our store',
-                                  style: TextStyle(color: Colors.white70),
-                                  textAlign: TextAlign.center,
-                                ),
-                                const SizedBox(height: 24),
-                                ElevatedButton.icon(
-                                  onPressed: () {
-                                    context.read<LoyaltyBloc>().add(
-                                      LoadPointsTransactions(),
-                                    );
-                                  },
-                                  icon: const Icon(Icons.refresh),
-                                  label: const Text('Refresh'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }
-
-              // If we have points, show the redemption form
+              // Always show the redemption form, even with 0 points (just disable the redeem button)
               return SingleChildScrollView(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),

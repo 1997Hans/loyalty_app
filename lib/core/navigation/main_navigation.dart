@@ -90,19 +90,7 @@ class _MainNavigationState extends State<MainNavigation> {
                 if (showLoadingOverlay)
                   Container(
                     color: Colors.black.withOpacity(0.7),
-                    child: const Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 16),
-                          Text(
-                            'Syncing loyalty data...',
-                            style: TextStyle(color: Colors.white, fontSize: 16),
-                          ),
-                        ],
-                      ),
-                    ),
+                    child: const Center(child: CircularProgressIndicator()),
                   ),
               ],
             ),
