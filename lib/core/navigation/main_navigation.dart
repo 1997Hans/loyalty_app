@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:loyalty_app/features/loyalty/bloc/loyalty_bloc.dart';
 import 'package:loyalty_app/features/loyalty/data/repositories/loyalty_repository.dart';
 import 'package:loyalty_app/features/loyalty/data/services/loyalty_service_impl.dart';
+import 'package:loyalty_app/features/loyalty/domain/models/loyalty_points.dart';
 import 'package:loyalty_app/features/loyalty/ui/screens/loyalty_dashboard_screen.dart';
 import 'package:loyalty_app/features/loyalty/ui/screens/loyalty_points_screen.dart';
 import 'package:loyalty_app/features/loyalty/ui/screens/points_redemption_screen.dart';
@@ -153,7 +154,19 @@ class _MainNavigationState extends State<MainNavigation> {
                       availablePoints: availablePoints,
                     );
                   }
-                  return const PointsRedemptionScreen(availablePoints: 0);
+
+                  // Use BlocBuilder to get current points when accessing directly from tab
+                  return BlocBuilder<LoyaltyBloc, LoyaltyState>(
+                    builder: (context, state) {
+                      int points = 0;
+                      if (state.status == LoyaltyStatus.loaded &&
+                          state.loyaltyPoints != null) {
+                        points = state.loyaltyPoints!.currentPoints;
+                      }
+
+                      return PointsRedemptionScreen(availablePoints: points);
+                    },
+                  );
                 case 3:
                   // Profile page placeholder
                   return const Scaffold(
