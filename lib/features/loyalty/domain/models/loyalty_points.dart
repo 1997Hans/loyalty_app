@@ -1,132 +1,147 @@
 import 'package:equatable/equatable.dart';
-import 'package:loyalty_app/core/constants/app_config.dart';
+import 'package:loyalty_app/core/config/app_config.dart';
 
+/// Represents a user's loyalty points balance
 class LoyaltyPoints extends Equatable {
-  final String userId;
+  /// Current available points balance
   final int currentPoints;
-  final int lifetimePoints;
-  final int pendingPoints;
-  final int redeemedPoints;
-  final DateTime lastUpdated;
-  final DateTime? expiryDate;
 
-  const LoyaltyPoints({
-    required this.userId,
+  /// Total lifetime points earned
+  final int lifetimePoints;
+
+  /// Points that have been redeemed
+  final int redeemedPoints;
+
+  /// Pending points (not yet confirmed)
+  final int pendingPoints;
+
+  /// Date of last update
+  final DateTime lastUpdated;
+
+  /// User ID associated with these points
+  final String userId;
+
+  LoyaltyPoints({
     required this.currentPoints,
     required this.lifetimePoints,
-    this.pendingPoints = 0,
-    this.redeemedPoints = 0,
-    required this.lastUpdated,
-    this.expiryDate,
-  });
+    required this.redeemedPoints,
+    required this.pendingPoints,
+    DateTime? lastUpdated,
+    this.userId = 'user_123',
+  }) : this.lastUpdated = lastUpdated ?? DateTime(2023, 1, 1);
 
-  /// Creates a default instance with zero points
+  /// Factory constructor for creating initial empty points
   factory LoyaltyPoints.initial() {
     return LoyaltyPoints(
-      userId: 'user_default',
       currentPoints: 0,
       lifetimePoints: 0,
-      lastUpdated: DateTime.now(),
+      redeemedPoints: 0,
+      pendingPoints: 0,
     );
   }
 
-  /// Creates a sample instance with mock data for development
+  /// Create a mock points object for testing
   factory LoyaltyPoints.mock() {
     return LoyaltyPoints(
-      userId: 'user_1234',
-      currentPoints: 5250,
-      lifetimePoints: 8500,
-      pendingPoints: 120,
-      redeemedPoints: 3250,
-      lastUpdated: DateTime.now().subtract(const Duration(days: 3)),
-      expiryDate: DateTime.now().add(const Duration(days: 365)),
+      currentPoints: 250,
+      lifetimePoints: 300,
+      redeemedPoints: 50,
+      pendingPoints: 0,
     );
   }
 
-  /// Calculates the peso value of the current points
-  double get pointsValue {
-    return currentPoints * AppConfig.pesosPerPoint;
+  /// Calculate the value of the current points in PHP
+  double get currentValuePHP => calculateValuePHP(currentPoints);
+
+  /// Calculate the value of the lifetime points in PHP
+  double get lifetimeValuePHP => calculateValuePHP(lifetimePoints);
+
+  /// Calculate the value of the redeemed points in PHP
+  double get redeemedValuePHP => calculateValuePHP(redeemedPoints);
+
+  /// Get formatted value string
+  String get pointsValueFormatted => '₱${currentValuePHP.toStringAsFixed(2)}';
+
+  /// Calculate the value of points in PHP
+  double calculateValuePHP(int points) {
+    return points * AppConfig.pointValueInPHP;
   }
 
-  /// Returns the formatted peso value of the points
-  String get pointsValueFormatted {
-    return '${AppConfig.currencySymbol}${pointsValue.toStringAsFixed(2)}';
+  /// Calculate points earned for a purchase
+  static int calculatePointsForPurchase(double amount) {
+    return (amount * AppConfig.pointsPerPHP).round();
   }
 
-  /// Calculate how many points would be earned for a given purchase amount
-  static int calculatePointsForPurchase(double purchaseAmount) {
-    return (purchaseAmount * AppConfig.pointsPerPeso).round();
-  }
-
-  /// Calculate the peso value of a given number of points
-  static double calculateValueOfPoints(int points) {
-    return points * AppConfig.pesosPerPoint;
-  }
-
-  /// Creates a new instance with updated points after a purchase
-  LoyaltyPoints addPoints(int pointsToAdd) {
-    return LoyaltyPoints(
-      userId: userId,
-      currentPoints: currentPoints + pointsToAdd,
-      lifetimePoints: lifetimePoints + pointsToAdd,
-      pendingPoints: pendingPoints,
-      redeemedPoints: redeemedPoints,
+  /// Add points to the current balance
+  LoyaltyPoints addPoints(int points) {
+    return copyWith(
+      currentPoints: currentPoints + points,
+      lifetimePoints: lifetimePoints + points,
       lastUpdated: DateTime.now(),
-      expiryDate: expiryDate,
     );
   }
 
-  /// Creates a new instance with updated points after a points redemption
-  LoyaltyPoints redeemPoints(int pointsToRedeem) {
-    if (pointsToRedeem > currentPoints) {
-      throw Exception('Insufficient points for redemption');
+  /// Add pending points that need confirmation
+  LoyaltyPoints addPendingPoints(int points) {
+    return copyWith(
+      pendingPoints: pendingPoints + points,
+      lastUpdated: DateTime.now(),
+    );
+  }
+
+  /// Confirm pending points, moving them to current and lifetime
+  LoyaltyPoints confirmPendingPoints(int points) {
+    // Ensure we don't confirm more than what's pending
+    final pointsToConfirm = points > pendingPoints ? pendingPoints : points;
+
+    return copyWith(
+      currentPoints: currentPoints + pointsToConfirm,
+      lifetimePoints: lifetimePoints + pointsToConfirm,
+      pendingPoints: pendingPoints - pointsToConfirm,
+      lastUpdated: DateTime.now(),
+    );
+  }
+
+  /// Redeem points from the current balance
+  LoyaltyPoints redeemPoints(int points) {
+    // Ensure we don't redeem more than available
+    if (points > currentPoints) {
+      throw Exception('Cannot redeem more points than available');
     }
 
-    return LoyaltyPoints(
-      userId: userId,
-      currentPoints: currentPoints - pointsToRedeem,
-      lifetimePoints: lifetimePoints,
-      pendingPoints: pendingPoints,
-      redeemedPoints: redeemedPoints + pointsToRedeem,
+    return copyWith(
+      currentPoints: currentPoints - points,
+      redeemedPoints: redeemedPoints + points,
       lastUpdated: DateTime.now(),
-      expiryDate: expiryDate,
     );
   }
 
-  /// Creates a new instance with pending points confirmed
-  LoyaltyPoints confirmPendingPoints() {
+  /// Create a copy of this object with optional changes
+  LoyaltyPoints copyWith({
+    int? currentPoints,
+    int? lifetimePoints,
+    int? redeemedPoints,
+    int? pendingPoints,
+    DateTime? lastUpdated,
+    String? userId,
+  }) {
     return LoyaltyPoints(
-      userId: userId,
-      currentPoints: currentPoints + pendingPoints,
-      lifetimePoints: lifetimePoints + pendingPoints,
-      pendingPoints: 0,
-      redeemedPoints: redeemedPoints,
-      lastUpdated: DateTime.now(),
-      expiryDate: expiryDate,
-    );
-  }
-
-  /// Creates a new instance with added pending points
-  LoyaltyPoints addPendingPoints(int pointsToAdd) {
-    return LoyaltyPoints(
-      userId: userId,
-      currentPoints: currentPoints,
-      lifetimePoints: lifetimePoints,
-      pendingPoints: pendingPoints + pointsToAdd,
-      redeemedPoints: redeemedPoints,
-      lastUpdated: DateTime.now(),
-      expiryDate: expiryDate,
+      currentPoints: currentPoints ?? this.currentPoints,
+      lifetimePoints: lifetimePoints ?? this.lifetimePoints,
+      redeemedPoints: redeemedPoints ?? this.redeemedPoints,
+      pendingPoints: pendingPoints ?? this.pendingPoints,
+      lastUpdated: lastUpdated ?? this.lastUpdated,
+      userId: userId ?? this.userId,
     );
   }
 
   @override
   List<Object?> get props => [
-    userId,
     currentPoints,
     lifetimePoints,
-    pendingPoints,
     redeemedPoints,
+    pendingPoints,
     lastUpdated,
-    expiryDate,
+    userId,
   ];
 }

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:loyalty_app/core/config/app_config.dart';
 import 'package:loyalty_app/features/loyalty/domain/models/points_transaction.dart';
-import 'package:intl/intl.dart';
 
 /// A widget that displays a single loyalty transaction
 class LoyaltyTransactionItem extends StatelessWidget {
@@ -35,15 +34,6 @@ class LoyaltyTransactionItem extends StatelessWidget {
                     _formatDate(transaction.createdAt),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
-                  if (transaction.metadata.containsKey('order_id')) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      'Order: ${transaction.metadata['order_id']}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ],
                   if (transaction.status != TransactionStatus.completed)
                     Container(
                       margin: const EdgeInsets.only(top: 4),
@@ -77,13 +67,10 @@ class LoyaltyTransactionItem extends StatelessWidget {
                     color: transaction.isEarning ? Colors.green : Colors.blue,
                   ),
                 ),
-                if (transaction.metadata.containsKey('amount')) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    '₱${_getAmountFromMetadata()}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
+                Text(
+                  '₱${_calculateValue(transaction.points).toStringAsFixed(2)}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
               ],
             ),
           ],
@@ -105,17 +92,17 @@ class LoyaltyTransactionItem extends StatelessWidget {
         iconColor = Colors.blue;
         iconData = Icons.redeem;
         break;
-      case TransactionType.expiration:
-        iconColor = Colors.red;
-        iconData = Icons.access_time;
+      case TransactionType.bonus:
+        iconColor = Colors.amber;
+        iconData = Icons.stars;
         break;
       case TransactionType.adjustment:
         iconColor = Colors.purple;
         iconData = Icons.build;
         break;
-      case TransactionType.bonus:
-        iconColor = Colors.amber;
-        iconData = Icons.stars;
+      case TransactionType.expiration:
+        iconColor = Colors.red;
+        iconData = Icons.access_time;
         break;
     }
 
@@ -144,15 +131,10 @@ class LoyaltyTransactionItem extends StatelessWidget {
   }
 
   String _formatDate(DateTime date) {
-    final formatter = DateFormat('dd/MM/yyyy HH:mm');
-    return formatter.format(date);
+    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 
-  String _getAmountFromMetadata() {
-    if (transaction.metadata.containsKey('amount')) {
-      return transaction.metadata['amount'] ?? '0.00';
-    }
-    return (transaction.points.abs() * AppConfig.pointValueInPHP)
-        .toStringAsFixed(2);
+  double _calculateValue(int points) {
+    return points.abs() * AppConfig.pointValueInPHP;
   }
 }

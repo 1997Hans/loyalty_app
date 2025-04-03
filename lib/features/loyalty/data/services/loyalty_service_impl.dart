@@ -1,131 +1,140 @@
-import 'package:loyalty_app/core/constants/app_config.dart';
+import 'dart:async';
+
+import 'package:loyalty_app/core/config/app_config.dart';
+import 'package:loyalty_app/features/loyalty/data/repositories/loyalty_repository.dart';
 import 'package:loyalty_app/features/loyalty/domain/models/loyalty_points.dart';
 import 'package:loyalty_app/features/loyalty/domain/models/points_transaction.dart';
 import 'package:loyalty_app/features/loyalty/domain/services/loyalty_service.dart';
 
-/// Implementation of the LoyaltyService for handling loyalty points operations
+/// Implementation of LoyaltyService
 class LoyaltyServiceImpl implements LoyaltyService {
-  // In-memory storage for demo purposes
-  LoyaltyPoints _points = LoyaltyPoints.mock();
-  final List<PointsTransaction> _transactions =
-      PointsTransaction.getMockTransactions();
+  final LoyaltyRepository _repository;
+  final StreamController<LoyaltyPoints> _pointsStreamController =
+      StreamController<LoyaltyPoints>.broadcast();
 
-  @override
-  Future<LoyaltyPoints> getLoyaltyPoints() async {
-    // Simulate delay for network call
-    await Future.delayed(const Duration(milliseconds: 300));
-    return _points;
+  LoyaltyServiceImpl({required LoyaltyRepository repository})
+    : _repository = repository {
+    // Initialize the stream with current points data
+    _initializeStream();
+  }
+
+  Future<void> _initializeStream() async {
+    try {
+      final points = await getLoyaltyPoints();
+      _pointsStreamController.add(points);
+    } catch (e) {
+      print('Error initializing points stream: $e');
+    }
   }
 
   @override
-  Future<List<PointsTransaction>> getPointsTransactions() async {
-    // Simulate delay for network call
-    await Future.delayed(const Duration(milliseconds: 300));
-    return _transactions;
+  Future<LoyaltyPoints> getLoyaltyPoints() async {
+    return await _repository.getLoyaltyPoints();
+  }
+
+  @override
+  Stream<LoyaltyPoints> getLoyaltyPointsStream() {
+    return _pointsStreamController.stream;
+  }
+
+  @override
+  Future<PointsTransaction?> addPointsFromPurchase(
+    double amount,
+    String orderId,
+    String orderDetails,
+  ) async {
+    final points = LoyaltyPoints.calculatePointsForPurchase(amount);
+    final description = 'Purchase #$orderId: $orderDetails';
+
+    final transaction = PointsTransaction(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      type: TransactionType.purchase,
+      points: points,
+      description: description,
+      createdAt: DateTime.now(),
+      status: TransactionStatus.completed,
+      metadata: {'order_id': orderId, 'amount': amount.toString()},
+    );
+
+    await _repository.addTransaction(transaction);
+    await _repository.updatePoints((currentPoints) {
+      return currentPoints.addPoints(points);
+    });
+
+    // Update the stream
+    final updatedPoints = await getLoyaltyPoints();
+    _pointsStreamController.add(updatedPoints);
+
+    return transaction;
+  }
+
+  @override
+  Future<PointsTransaction?> redeemPoints(
+    int points,
+    String rewardTitle,
+    double value,
+  ) async {
+    final currentPoints = await getLoyaltyPoints();
+
+    if (currentPoints.currentPoints < points) {
+      return null; // Not enough points
+    }
+
+    final transaction = PointsTransaction(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      type: TransactionType.redemption,
+      points: -points,
+      description: 'Redeemed for $rewardTitle',
+      createdAt: DateTime.now(),
+      status: TransactionStatus.completed,
+      metadata: {'reward_title': rewardTitle, 'value': value.toString()},
+    );
+
+    await _repository.addTransaction(transaction);
+    await _repository.updatePoints((currentPoints) {
+      return currentPoints.redeemPoints(points);
+    });
+
+    // Update the stream
+    final updatedPoints = await getLoyaltyPoints();
+    _pointsStreamController.add(updatedPoints);
+
+    return transaction;
+  }
+
+  @override
+  Future<List<PointsTransaction>> getTransactions() async {
+    return await _repository.getTransactions();
   }
 
   @override
   Future<int> getExpiringPoints() async {
-    // Simulate logic to calculate expiring points
-    // In a real app, this would query points with expiry dates
-    await Future.delayed(const Duration(milliseconds: 200));
-    return (_points.currentPoints * 0.1).round(); // 10% of points expiring soon
-  }
+    // Simulate points that will expire in 30 days - in a real app, this would
+    // check transaction dates and expiration rules
+    final transactions = await getTransactions();
 
-  @override
-  Future<void> addPointsFromPurchase({
-    required String orderId,
-    required String description,
-    required double amount,
-  }) async {
-    // Calculate points to add (using the configured rate)
-    final pointsToAdd = LoyaltyPoints.calculatePointsForPurchase(amount);
+    // For demo purposes, we'll use 10% of the points from purchases in the last 3 months
+    final threeMonthsAgo = DateTime.now().subtract(const Duration(days: 90));
 
-    // Create a transaction
-    final transaction = PointsTransaction(
-      id: 'ORDER-$orderId-${DateTime.now().millisecondsSinceEpoch}',
-      userId: _points.userId,
-      points: pointsToAdd,
-      description: description,
-      type: PointsTransactionType.purchase,
-      date: DateTime.now(),
-      purchaseAmount: amount,
-      orderId: orderId,
-    );
-
-    // Add to transactions list
-    _transactions.insert(0, transaction);
-
-    // Update points
-    _points = _points.addPoints(pointsToAdd);
-
-    // Simulate backend delay
-    await Future.delayed(const Duration(milliseconds: 300));
-  }
-
-  @override
-  Future<void> redeemPoints({
-    required int pointsToRedeem,
-    required String description,
-  }) async {
-    // Check if user has enough points
-    if (_points.currentPoints < pointsToRedeem) {
-      throw Exception('Not enough points to redeem');
+    int expiringPoints = 0;
+    for (var transaction in transactions) {
+      if (transaction.type == TransactionType.purchase &&
+          transaction.createdAt.isAfter(threeMonthsAgo) &&
+          transaction.points > 0) {
+        expiringPoints += (transaction.points * 0.1).round();
+      }
     }
 
-    // Create a transaction
-    final transaction = PointsTransaction(
-      id: 'REDEEM-${DateTime.now().millisecondsSinceEpoch}',
-      userId: _points.userId,
-      points: -pointsToRedeem, // Negative points for redemption
-      description: description,
-      type: PointsTransactionType.redemption,
-      date: DateTime.now(),
-    );
-
-    // Add to transactions list
-    _transactions.insert(0, transaction);
-
-    // Update points
-    _points = _points.redeemPoints(pointsToRedeem);
-
-    // Simulate backend delay
-    await Future.delayed(const Duration(milliseconds: 300));
-  }
-
-  @override
-  Future<void> addBonusPoints({
-    required int bonusPoints,
-    required String description,
-  }) async {
-    // Create a transaction
-    final transaction = PointsTransaction(
-      id: 'BONUS-${DateTime.now().millisecondsSinceEpoch}',
-      userId: _points.userId,
-      points: bonusPoints,
-      description: description,
-      type: PointsTransactionType.bonus,
-      date: DateTime.now(),
-    );
-
-    // Add to transactions list
-    _transactions.insert(0, transaction);
-
-    // Update points
-    _points = _points.addPoints(bonusPoints);
-
-    // Simulate backend delay
-    await Future.delayed(const Duration(milliseconds: 300));
+    return expiringPoints;
   }
 
   @override
   double calculatePointsValue(int points) {
-    return points * AppConfig.pesosPerPoint;
+    return points * AppConfig.pointValueInPHP;
   }
 
-  @override
+  /// Dispose resources
   void dispose() {
-    // No resources to clean up in this implementation
-    // In a real app, this might close streams, database connections, etc.
+    _pointsStreamController.close();
   }
 }

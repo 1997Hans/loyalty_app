@@ -1,35 +1,33 @@
 import 'package:loyalty_app/features/loyalty/domain/models/loyalty_points.dart';
 import 'package:loyalty_app/features/loyalty/domain/models/points_transaction.dart';
 
-/// Abstract service interface for loyalty functionality
+/// Interface for loyalty service
 abstract class LoyaltyService {
-  /// Get user's current loyalty points
+  /// Get the current loyalty points
   Future<LoyaltyPoints> getLoyaltyPoints();
 
-  /// Get user's points transactions
-  Future<List<PointsTransaction>> getPointsTransactions();
-
-  /// Get points that are about to expire
-  Future<int> getExpiringPoints();
+  /// Get a stream of loyalty points updates
+  Stream<LoyaltyPoints> getLoyaltyPointsStream();
 
   /// Add points from a purchase
-  Future<void> addPointsFromPurchase({
-    required String orderId,
-    required String description,
-    required double amount,
-  });
+  Future<PointsTransaction?> addPointsFromPurchase(
+    double amount,
+    String orderId,
+    String orderDetails,
+  );
 
-  /// Redeem points for rewards
-  Future<void> redeemPoints({
-    required int pointsToRedeem,
-    required String description,
-  });
+  /// Redeem points for a reward
+  Future<PointsTransaction?> redeemPoints(
+    int points,
+    String rewardTitle,
+    double value,
+  );
 
-  /// Add bonus points
-  Future<void> addBonusPoints({
-    required int bonusPoints,
-    required String description,
-  });
+  /// Get all point transactions
+  Future<List<PointsTransaction>> getTransactions();
+
+  /// Get number of points that will expire soon
+  Future<int> getExpiringPoints();
 
   /// Calculate the monetary value of points
   double calculatePointsValue(int points);

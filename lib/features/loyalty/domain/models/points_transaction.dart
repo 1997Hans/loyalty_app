@@ -1,195 +1,151 @@
 import 'package:equatable/equatable.dart';
 import 'package:loyalty_app/core/constants/app_config.dart';
 
-enum PointsTransactionType { purchase, redemption, expired, adjustment, bonus }
+/// Type of points transaction
+enum TransactionType {
+  purchase, // Points earned from a purchase
+  redemption, // Points spent on a reward
+  bonus, // Bonus points (promotions, referrals)
+  adjustment, // Manual adjustment (e.g., customer service)
+  expiration, // Points expired
+}
 
-enum TransactionStatus { pending, completed, failed, canceled }
+/// Status of a transaction
+enum TransactionStatus {
+  pending, // Transaction is being processed
+  completed, // Transaction has been processed
+  cancelled, // Transaction was cancelled
+  failed, // Transaction failed
+}
 
+/// Represents a single transaction in the loyalty system
 class PointsTransaction extends Equatable {
+  /// Unique transaction ID
   final String id;
-  final String userId;
+
+  /// Type of transaction (purchase, redemption, etc.)
+  final TransactionType type;
+
+  /// Points amount (positive for earning, negative for spending)
   final int points;
+
+  /// Description of transaction
   final String description;
-  final PointsTransactionType type;
-  final DateTime date;
+
+  /// When the transaction happened
+  final DateTime createdAt;
+
+  /// Status of the transaction
   final TransactionStatus status;
-  final String? orderId;
-  final double? purchaseAmount;
-  final String? metaData;
+
+  /// Additional data related to the transaction
+  final Map<String, String> metadata;
 
   const PointsTransaction({
     required this.id,
-    required this.userId,
+    required this.type,
     required this.points,
     required this.description,
-    required this.type,
-    required this.date,
+    required this.createdAt,
     this.status = TransactionStatus.completed,
-    this.orderId,
-    this.purchaseAmount,
-    this.metaData,
+    this.metadata = const {},
   });
 
-  bool get isEarning {
-    return type == PointsTransactionType.purchase ||
-        type == PointsTransactionType.bonus ||
-        (type == PointsTransactionType.adjustment && points > 0);
-  }
+  /// Whether this transaction represents earning points
+  bool get isEarning => points > 0;
 
-  String get formattedDate {
-    return '${date.day} ${_getMonth(date.month)} ${date.year} - ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
-  }
+  /// Whether this transaction represents spending points
+  bool get isSpending => points < 0;
 
-  String _getMonth(int month) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-
-    return months[month - 1];
-  }
-
+  /// Formatted points value with sign
   String get pointsFormatted {
-    final sign = isEarning ? '+ ' : '- ';
-    return '$sign${points.abs()} pts';
+    if (points > 0) {
+      return '+$points';
+    }
+    return '$points';
   }
 
-  String get valueFormatted {
-    final pointValue = points.abs() * AppConfig.pesosPerPoint;
-    final sign = isEarning ? '+ ' : '- ';
-    return '$sign${AppConfig.currencySymbol}${pointValue.toStringAsFixed(2)}';
-  }
-
-  // Get an icon for the transaction type
-  String get transactionIcon {
-    switch (type) {
-      case PointsTransactionType.purchase:
-        return 'shopping_cart';
-      case PointsTransactionType.redemption:
-        return 'redeem';
-      case PointsTransactionType.expired:
-        return 'access_time';
-      case PointsTransactionType.adjustment:
-        return 'settings';
-      case PointsTransactionType.bonus:
-        return 'stars';
+  /// Get color based on transaction type
+  String get statusText {
+    switch (status) {
+      case TransactionStatus.pending:
+        return 'Pending';
+      case TransactionStatus.completed:
+        return 'Completed';
+      case TransactionStatus.cancelled:
+        return 'Cancelled';
+      case TransactionStatus.failed:
+        return 'Failed';
     }
   }
 
+  /// Create a copy of this transaction with optional changes
   PointsTransaction copyWith({
     String? id,
-    String? userId,
+    TransactionType? type,
     int? points,
     String? description,
-    PointsTransactionType? type,
-    DateTime? date,
+    DateTime? createdAt,
     TransactionStatus? status,
-    String? orderId,
-    double? purchaseAmount,
-    String? metaData,
+    Map<String, String>? metadata,
   }) {
     return PointsTransaction(
       id: id ?? this.id,
-      userId: userId ?? this.userId,
+      type: type ?? this.type,
       points: points ?? this.points,
       description: description ?? this.description,
-      type: type ?? this.type,
-      date: date ?? this.date,
+      createdAt: createdAt ?? this.createdAt,
       status: status ?? this.status,
-      orderId: orderId ?? this.orderId,
-      purchaseAmount: purchaseAmount ?? this.purchaseAmount,
-      metaData: metaData ?? this.metaData,
+      metadata: metadata ?? this.metadata,
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'userId': userId,
-      'points': points,
-      'description': description,
-      'type': type.toString(),
-      'date': date.toIso8601String(),
-      'status': status.toString(),
-      'orderId': orderId,
-      'purchaseAmount': purchaseAmount,
-      'metaData': metaData,
-    };
+  /// Create mock transactions for testing and demo
+  static List<PointsTransaction> getMockTransactions() {
+    return [
+      PointsTransaction(
+        id: 'tx-001',
+        type: TransactionType.purchase,
+        points: 125,
+        description: 'Purchase #12345',
+        createdAt: DateTime.now().subtract(const Duration(days: 2)),
+        metadata: {'order_id': '12345', 'amount': '2500'},
+      ),
+      PointsTransaction(
+        id: 'tx-002',
+        type: TransactionType.redemption,
+        points: -50,
+        description: 'Redeemed for Free Delivery',
+        createdAt: DateTime.now().subtract(const Duration(days: 1)),
+        metadata: {'reward_title': 'Free Delivery', 'value': '50'},
+      ),
+      PointsTransaction(
+        id: 'tx-003',
+        type: TransactionType.purchase,
+        points: 75,
+        description: 'Purchase #12340',
+        createdAt: DateTime.now().subtract(const Duration(days: 5)),
+        metadata: {'order_id': '12340', 'amount': '1500'},
+      ),
+      PointsTransaction(
+        id: 'tx-004',
+        type: TransactionType.bonus,
+        points: 100,
+        description: 'Welcome bonus',
+        createdAt: DateTime.now().subtract(const Duration(days: 30)),
+        metadata: {'reason': 'new_customer'},
+      ),
+    ];
   }
 
   @override
   List<Object?> get props => [
     id,
-    userId,
+    type,
     points,
     description,
-    type,
-    date,
+    createdAt,
     status,
-    orderId,
-    purchaseAmount,
-    metaData,
+    metadata,
   ];
-
-  // Example points transactions
-  static List<PointsTransaction> getMockTransactions() {
-    final userId = 'user_1234';
-    return [
-      PointsTransaction(
-        id: '1',
-        userId: userId,
-        points: 620,
-        description: 'Purchase: Spare parts',
-        type: PointsTransactionType.purchase,
-        date: DateTime.now().subtract(const Duration(days: 5)),
-        orderId: 'ORD-20231015-001',
-        purchaseAmount: 6200.50,
-      ),
-      PointsTransaction(
-        id: '2',
-        userId: userId,
-        points: 345,
-        description: 'Purchase: Light fixtures',
-        type: PointsTransactionType.purchase,
-        date: DateTime.now().subtract(const Duration(days: 5, hours: 2)),
-        orderId: 'ORD-20231015-002',
-        purchaseAmount: 3450.75,
-      ),
-      PointsTransaction(
-        id: '3',
-        userId: userId,
-        points: 500,
-        description: 'Redeemed for discount',
-        type: PointsTransactionType.redemption,
-        date: DateTime.now().subtract(const Duration(days: 10, hours: 3)),
-        orderId: 'RDM-20231010-001',
-      ),
-      PointsTransaction(
-        id: '4',
-        userId: userId,
-        points: 100,
-        description: 'Welcome bonus',
-        type: PointsTransactionType.bonus,
-        date: DateTime.now().subtract(const Duration(days: 30)),
-      ),
-      PointsTransaction(
-        id: '5',
-        userId: userId,
-        points: 50,
-        description: 'Points adjustment',
-        type: PointsTransactionType.adjustment,
-        date: DateTime.now().subtract(const Duration(days: 15)),
-      ),
-    ];
-  }
 }

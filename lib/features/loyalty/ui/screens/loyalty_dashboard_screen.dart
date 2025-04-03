@@ -7,699 +7,320 @@ import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/core/utils/gradient_background.dart';
 import 'package:loyalty_app/features/loyalty/domain/models/loyalty_level.dart';
 import 'package:loyalty_app/features/loyalty/domain/models/loyalty_transaction.dart';
-import 'package:loyalty_app/features/loyalty/domain/blocs/loyalty_bloc.dart';
+import 'package:loyalty_app/features/loyalty/domain/blocs/loyalty_bloc.dart'
+    as domain_bloc;
 import 'package:loyalty_app/features/loyalty/ui/screens/loyalty_points_screen.dart';
 import 'package:loyalty_app/features/loyalty/ui/widgets/loyalty_points_widget.dart';
+import 'package:loyalty_app/core/services/notification_service.dart';
+import 'package:loyalty_app/features/loyalty/bloc/loyalty_bloc.dart' as bloc;
+import 'package:loyalty_app/features/loyalty/domain/models/loyalty_points.dart';
+import 'package:loyalty_app/features/loyalty/domain/models/points_transaction.dart';
+import 'package:loyalty_app/features/loyalty/ui/screens/points_redemption_screen.dart';
+import 'package:loyalty_app/features/loyalty/ui/widgets/loyalty_card.dart';
+import 'package:loyalty_app/features/loyalty/ui/widgets/loyalty_transaction_item.dart';
 
-class LoyaltyDashboardScreen extends StatelessWidget {
+class LoyaltyDashboardScreen extends StatefulWidget {
   const LoyaltyDashboardScreen({super.key});
 
   @override
+  State<LoyaltyDashboardScreen> createState() => _LoyaltyDashboardScreenState();
+}
+
+class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Set context for the bloc on initialization
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<bloc.LoyaltyBloc>().add(bloc.SetContext(context));
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final transactions = LoyaltyTransaction.getMockTransactions();
-    final loyaltyLevel = LoyaltyLevel.platinum();
-
     return Scaffold(
-      body: GradientBackground(
-        child: SafeArea(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 20),
-                  // Welcome Section
-                  _buildWelcomeSection(),
-                  const SizedBox(height: 30),
+      appBar: AppBar(title: const Text('Loyalty Dashboard')),
+      body: BlocListener<bloc.LoyaltyBloc, bloc.LoyaltyState>(
+        listener: (context, state) {
+          // Safe null checks for all state properties
+          final status = state?.status;
+          final redemptionStatus = state?.redemptionStatus;
+          final lastTransaction = state?.lastRedeemedTransaction;
+          final errorMsg = state?.errorMessage;
 
-                  // Current Level Section
-                  _buildCurrentLevelSection(context, loyaltyLevel),
-                  const SizedBox(height: 20),
+          // Error notifications
+          if (status == bloc.LoyaltyStatus.error && errorMsg != null) {
+            NotificationService().showRedemptionFailureNotification(
+              context,
+              errorMsg,
+            );
+          }
 
-                  // Add the loyalty points widget before the cashback card
-                  const SizedBox(height: 24.0),
-                  const LoyaltyPointsWidget(),
-                  
-                  const SizedBox(height: 24.0),
-                  // Cashback Section
-                  _buildCashbackSection(context),
-                  const SizedBox(height: 20),
+          // Success notifications
+          if (redemptionStatus == bloc.RedemptionStatus.success &&
+              lastTransaction != null) {
+            final transaction = lastTransaction;
+            final rewardTitle =
+                transaction.metadata['reward_title'] ?? 'Reward';
+            final valueStr = transaction.metadata['value'] ?? '0';
+            final value = double.tryParse(valueStr) ?? 0.0;
 
-                  // Add rewards section after user levels
-                  const SizedBox(height: 24.0),
-                  _buildRewardsSection(context),
-                  
-                  // Add proper spacing between Redeem Points and History sections
-                  const SizedBox(height: 32.0),
+            NotificationService().showRedemptionConfirmationNotification(
+              context,
+              rewardTitle,
+              transaction.points.abs(),
+              value,
+            );
 
-                  // History Section
-                  _buildHistorySection(context, transactions),
-                  const SizedBox(height: 30),
-                ],
-              ),
-            ),
-          ),
+            context.read<bloc.LoyaltyBloc>().add(
+              const bloc.ClearRedemptionStatus(),
+            );
+          }
+
+          // Check for expiring points
+          context.read<bloc.LoyaltyBloc>().add(
+            const bloc.CheckExpiringPoints(),
+          );
+        },
+        child: BlocBuilder<bloc.LoyaltyBloc, bloc.LoyaltyState>(
+          builder: (context, state) {
+            if (state == null) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final status = state.status;
+            final points = state.loyaltyPoints;
+
+            final isLoading =
+                status == bloc.LoyaltyStatus.initial ||
+                (status == bloc.LoyaltyStatus.loading && points == null);
+
+            if (isLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final loyaltyPoints = points;
+            if (loyaltyPoints == null) {
+              return const Center(child: Text('No loyalty data available'));
+            }
+
+            return _DashboardContent(
+              loyaltyPoints: loyaltyPoints,
+              transactions: state.transactions ?? [],
+            );
+          },
         ),
       ),
     );
   }
+}
 
-  Widget _buildWelcomeSection() {
-    return Row(
-      children: [
-        const DinarysLogo(),
-        const Spacer(),
-        IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () {},
-          color: Colors.white,
-        ),
-      ],
-    );
-  }
+class _DashboardContent extends StatelessWidget {
+  final LoyaltyPoints loyaltyPoints;
+  final List<PointsTransaction> transactions;
 
-  Widget _buildCurrentLevelSection(BuildContext context, LoyaltyLevel level) {
-    return Row(
-      children: [
-        const BackButton(color: Colors.white),
-        const Text(
-          'Current level',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
+  const _DashboardContent({
+    required this.loyaltyPoints,
+    required this.transactions,
+  });
 
-  Widget _buildCashbackSection(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Cashback',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 20),
-
-        // Cashback Balance Card
-        SimpleGlassCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Total',
-                style: TextStyle(color: Colors.white70, fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '${AppConfig.currencySymbol}525,681',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Platinum',
-                    style: TextStyle(
-                      color: AppTheme.platinumColor,
-                      fontSize: 16,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text(
-                      '№ 111 235 532',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const SizedBox(), // Empty spacer
-                  Row(
-                    children: [
-                      TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const LoyaltyPointsScreen(),
-                            ),
-                          );
-                        },
-                        child: Row(
-                          children: [
-                            const Text(
-                              'View Points',
-                              style: TextStyle(
-                                color: Colors.blue,
-                                fontSize: 14,
-                                decoration: TextDecoration.underline,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Icon(
-                              Icons.arrow_forward,
-                              color: Colors.blue.shade200,
-                              size: 14,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      GestureDetector(
-                        onTap: () {
-                          // Show level details
-                        },
-                        child: Text(
-                          'User levels details',
-                          style: TextStyle(
-                            color: Colors.blue.shade200,
-                            fontSize: 14,
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 20),
-
-        // Cashback Level Card
-        SimpleGlassCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Cashback level',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.platinumColor.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(
-                        AppTheme.smallBorderRadius,
-                      ),
-                    ),
-                    child: const Text(
-                      'Platinum',
-                      style: TextStyle(
-                        color: AppTheme.platinumColor,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'From 09/20',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text(
-                      '№ 111 235 532',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-
-              // Cashback Percentages
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildCashbackRateItem(
-                    icon: Icons.shopping_bag_outlined,
-                    rate: '10%',
-                    label: 'For goods',
-                  ),
-                  _buildCashbackRateItem(
-                    icon: Icons.support_agent,
-                    rate: '15%',
-                    label: 'For services',
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 24),
-
-              // Achievement Criteria
-              _buildAchievementItem(
-                icon: Icons.circle,
-                iconColor: Colors.green,
-                text: 'Purchase of equipment from Dinarys B2B',
-                progress: 0.6,
-              ),
-
-              const SizedBox(height: 16),
-
-              _buildAchievementItem(
-                icon: Icons.emoji_events,
-                iconColor: Colors.amber,
-                text:
-                    'Purchase of goods and services worth more than ${AppConfig.currencySymbol}10,000,000 within 3 years',
-                progress: 0.3,
-              ),
-
-              const SizedBox(height: 24),
-
-              // Ruby Level Button
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.3),
-                  borderRadius: BorderRadius.circular(
-                    AppTheme.smallBorderRadius,
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'Ruby level',
-                      style: TextStyle(
-                        color: AppTheme.rubyColor,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Icon(Icons.keyboard_arrow_down, color: AppTheme.rubyColor),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildHistorySection(
-    BuildContext context,
-    List<LoyaltyTransaction> transactions,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'History',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Row(
-              children: [
-                const Text(
-                  'October',
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-                const SizedBox(width: 4),
-                Icon(
-                  Icons.keyboard_arrow_down,
-                  color: Colors.white70,
-                  size: 20,
-                ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        // Transaction List
-        ...transactions.map(
-          (transaction) => _buildTransactionItem(transaction),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTransactionItem(LoyaltyTransaction transaction) {
-    final IconData icon;
-    final Color iconBgColor;
-
-    switch (transaction.title) {
-      case 'Spare parts':
-        icon = Icons.settings;
-        iconBgColor = Colors.purple;
-        break;
-      case 'Light':
-        icon = Icons.flash_on;
-        iconBgColor = Colors.amber;
-        break;
-      case 'Consulting':
-        icon = Icons.support_agent;
-        iconBgColor = Colors.blue;
-        break;
-      default:
-        icon = Icons.monetization_on;
-        iconBgColor = Colors.green;
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: SimpleGlassCard(
-        padding: const EdgeInsets.all(12.0),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: iconBgColor,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: Colors.white, size: 20),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    transaction.title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    transaction.formattedDate,
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-            Text(
-              transaction.amountFormatted,
-              style: TextStyle(
-                color: transaction.isPositive ? Colors.green : Colors.red,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCashbackRateItem({
-    required IconData icon,
-    required String rate,
-    required String label,
-  }) {
-    return Row(
-      children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, color: Colors.white, size: 20),
-        ),
-        const SizedBox(width: 16),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              rate,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            Text(
-              label,
-              style: const TextStyle(color: Colors.white70, fontSize: 14),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAchievementItem({
-    required IconData icon,
-    required Color iconColor,
-    required String text,
-    required double progress,
-  }) {
-    return Row(
-      children: [
-        Icon(icon, color: iconColor, size: 24),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                text,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
-              ),
-              const SizedBox(height: 8),
-              LinearProgressIndicator(
-                value: progress,
-                backgroundColor: Colors.white24,
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRewardsSection(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Redeem Your Points',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 16),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _buildRewardOption(
-                context,
-                'Discount Voucher',
-                '200 pts',
-                '₱50 off',
-                Icons.local_offer,
-                Colors.orangeAccent,
-              ),
-              const SizedBox(width: 12),
-              _buildRewardOption(
-                context,
-                'Free Delivery',
-                '350 pts',
-                'On your next order',
-                Icons.delivery_dining,
-                Colors.greenAccent,
-              ),
-              const SizedBox(width: 12),
-              _buildRewardOption(
-                context,
-                'Cash Rebate',
-                '500 pts',
-                '₱100 cashback',
-                Icons.attach_money,
-                Colors.purpleAccent,
-              ),
-              const SizedBox(width: 12),
-              _buildRewardOption(
-                context,
-                'Premium Status',
-                '1000 pts',
-                '30 days of VIP benefits',
-                Icons.star,
-                Colors.amberAccent,
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRewardOption(
-    BuildContext context,
-    String title,
-    String points,
-    String description,
-    IconData icon,
-    Color color,
-  ) {
-    // Extract points value from string (e.g., "200 pts" -> 200)
-    final pointsValue = int.parse(points.split(' ')[0]);
-    
-    return SimpleGlassCard(
-      width: 150,
-      // Increase height to prevent overflow
-      height: 210,
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            backgroundColor: color.withOpacity(0.2),
-            radius: 20,
-            child: Icon(
-              icon,
-              color: color,
-              size: 20,
-            ),
+          LoyaltyCard(
+            currentPoints: loyaltyPoints.currentPoints,
+            pointsValue: loyaltyPoints.currentValuePHP,
+            onPointsDetailsTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const LoyaltyPointsScreen(),
+                ),
+              );
+            },
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 24),
+          Text('Redeem Points', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 16),
+          _buildRedemptionOptions(context, loyaltyPoints),
+          const SizedBox(height: 24),
           Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            'Recent Transactions',
+            style: Theme.of(context).textTheme.titleLarge,
           ),
-          const SizedBox(height: 4),
-          Text(
-            points,
-            style: const TextStyle(
-              color: Colors.amberAccent,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            description,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const Spacer(),
+          const SizedBox(height: 16),
+          _buildRecentTransactions(context, transactions),
+          const SizedBox(height: 16),
           Center(
-            child: BlocBuilder<LoyaltyBloc, LoyaltyState>(
-              builder: (context, state) {
-                bool isEnoughPoints = false;
-                
-                if (state is LoyaltyLoaded) {
-                  isEnoughPoints = state.points.currentPoints >= pointsValue;
-                }
-                
-                return SizedBox(
-                  width: double.infinity,
-                  height: 36,
-                  child: ElevatedButton(
-                    onPressed: isEnoughPoints ? () {
-                      // Use RedeemPoints event
-                      context.read<LoyaltyBloc>().add(
-                        RedeemPoints(
-                          rewardTitle: title,
-                          pointsRequired: pointsValue,
-                          rewardDescription: description,
-                        ),
-                      );
-                      
-                      // Show a snackbar
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Redeeming $title for $points'),
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                    } : null, // Disable if not enough points
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isEnoughPoints ? color.withOpacity(0.8) : Colors.grey.withOpacity(0.5),
-                      // Optimize padding to fit better
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      minimumSize: const Size(double.infinity, 30),
-                      textStyle: const TextStyle(fontSize: 12),
-                    ),
-                    child: Text(isEnoughPoints ? 'Redeem' : 'Not Enough'),
+            child: TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const LoyaltyPointsScreen(),
                   ),
                 );
               },
+              child: const Text('View All Transactions'),
             ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildRedemptionOptions(
+    BuildContext context,
+    LoyaltyPoints loyaltyPoints,
+  ) {
+    final optionsList = [
+      _RedemptionOption(
+        title: 'Free Delivery',
+        points: 100,
+        value: 10.0,
+        icon: Icons.local_shipping,
+      ),
+      _RedemptionOption(
+        title: '₱50 Discount',
+        points: 500,
+        value: 50.0,
+        icon: Icons.money_off,
+      ),
+      _RedemptionOption(
+        title: '₱100 Discount',
+        points: 1000,
+        value: 100.0,
+        icon: Icons.money_off,
+      ),
+      _RedemptionOption(
+        title: 'Special Item',
+        points: 2500,
+        value: 250.0,
+        icon: Icons.card_giftcard,
+      ),
+    ];
+
+    return SizedBox(
+      height: 140,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: optionsList.length,
+        itemBuilder: (context, index) {
+          final option = optionsList[index];
+          final canRedeem = loyaltyPoints.currentPoints >= option.points;
+
+          return GestureDetector(
+            onTap:
+                canRedeem
+                    ? () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) => PointsRedemptionScreen(
+                                availablePoints: loyaltyPoints.currentPoints,
+                              ),
+                        ),
+                      );
+                    }
+                    : null,
+            child: Container(
+              width: 150,
+              margin: EdgeInsets.only(
+                right: index < optionsList.length - 1 ? 12 : 0,
+              ),
+              child: Card(
+                elevation: 3,
+                color: canRedeem ? null : Colors.grey.shade200,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        option.icon,
+                        color:
+                            canRedeem
+                                ? Theme.of(context).primaryColor
+                                : Colors.grey,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        option.title,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: canRedeem ? null : Colors.grey,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${option.points} points',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color:
+                              canRedeem
+                                  ? Theme.of(context).primaryColor
+                                  : Colors.grey,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Value: ₱${option.value.toStringAsFixed(2)}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: canRedeem ? null : Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildRecentTransactions(
+    BuildContext context,
+    List<PointsTransaction> transactions,
+  ) {
+    final recentTransactions = transactions.take(3).toList();
+
+    if (recentTransactions.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Center(child: Text('No transactions yet')),
+        ),
+      );
+    }
+
+    return Column(
+      children:
+          recentTransactions.map((transaction) {
+            return LoyaltyTransactionItem(transaction: transaction);
+          }).toList(),
+    );
+  }
+}
+
+/// Redemption option data class
+class _RedemptionOption {
+  final String title;
+  final int points;
+  final double value;
+  final IconData icon;
+
+  const _RedemptionOption({
+    required this.title,
+    required this.points,
+    required this.value,
+    required this.icon,
+  });
 }

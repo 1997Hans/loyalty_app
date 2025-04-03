@@ -4,10 +4,15 @@ import 'package:loyalty_app/core/common/widgets/simple_glass_card.dart';
 import 'package:loyalty_app/core/constants/app_config.dart';
 import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/core/utils/gradient_background.dart';
-import 'package:loyalty_app/features/loyalty/domain/blocs/loyalty_bloc.dart';
+import 'package:loyalty_app/core/services/notification_service.dart';
+import 'package:loyalty_app/features/loyalty/bloc/loyalty_bloc.dart';
+import 'package:loyalty_app/features/loyalty/domain/models/loyalty_points.dart';
 import 'package:loyalty_app/features/loyalty/domain/models/points_transaction.dart';
 import 'package:loyalty_app/features/loyalty/ui/screens/points_redemption_screen.dart';
 import 'package:loyalty_app/features/loyalty/ui/widgets/points_transaction_item.dart';
+import 'package:loyalty_app/features/loyalty/ui/widgets/loyalty_transaction_item.dart'
+    as loyalty;
+import 'package:loyalty_app/features/loyalty/ui/widgets/points_summary_card.dart';
 
 class LoyaltyPointsScreen extends StatelessWidget {
   const LoyaltyPointsScreen({super.key});
@@ -16,251 +21,268 @@ class LoyaltyPointsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Loyalty Points'),
-        backgroundColor: Colors.transparent,
+        title: const Text('My Loyalty Points'),
+        centerTitle: true,
         elevation: 0,
+        backgroundColor: Colors.transparent,
       ),
-      body: const GradientBackground(
-        child: _LoyaltyPointsContent(),
+      body: GradientBackground(
+        child: BlocBuilder<LoyaltyBloc, LoyaltyState>(
+          builder: (context, state) {
+            if (state.status == LoyaltyStatus.initial ||
+                state.status == LoyaltyStatus.loading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (state.status == LoyaltyStatus.error) {
+              return Center(
+                child: Text(
+                  state.errorMessage ?? 'An error occurred',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              );
+            }
+
+            if (state.loyaltyPoints == null) {
+              return const Center(
+                child: Text(
+                  'No loyalty data available',
+                  style: TextStyle(color: Colors.white),
+                ),
+              );
+            }
+
+            return _buildContent(context, state);
+          },
+        ),
       ),
     );
   }
-}
 
-class _LoyaltyPointsContent extends StatelessWidget {
-  const _LoyaltyPointsContent();
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<LoyaltyBloc, LoyaltyState>(
-      builder: (context, state) {
-        if (state is LoyaltyLoading) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        } else if (state is LoyaltyLoaded) {
-          return SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildPointsBalanceCard(context, state),
-                  const SizedBox(height: 24.0),
-                  _buildExpiringPointsCard(context, state),
-                  const SizedBox(height: 24.0),
-                  _buildTransactionHistory(context, state),
-                ],
-              ),
-            ),
-          );
-        } else if (state is LoyaltyError) {
-          return Center(
-            child: Text(
-              'Error: ${state.message}',
-              style: const TextStyle(color: Colors.white),
-            ),
-          );
-        }
-        
-        return const Center(
-          child: Text(
-            'No data available',
-            style: TextStyle(color: Colors.white),
-          ),
-        );
-      },
+  Widget _buildContent(BuildContext context, LoyaltyState state) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildPointsBalanceCard(context, state),
+          const SizedBox(height: 24),
+          _buildExpiringPointsCard(context, state),
+          const SizedBox(height: 24),
+          _buildTransactionHistory(context, state),
+        ],
+      ),
     );
   }
 
-  Widget _buildPointsBalanceCard(BuildContext context, LoyaltyLoaded state) {
-    final points = state.points;
-    
+  Widget _buildPointsBalanceCard(BuildContext context, LoyaltyState state) {
+    final points = state.loyaltyPoints!;
+
     return SimpleGlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Current Points Balance',
+            'Points Balance',
             style: TextStyle(
               color: Colors.white,
               fontSize: 18,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 16.0),
+          const SizedBox(height: 16),
           Row(
             children: [
-              const Icon(
-                Icons.stars,
-                color: Colors.amber,
-                size: 40,
-              ),
-              const SizedBox(width: 16.0),
+              const Icon(Icons.stars, color: Colors.amber, size: 40),
+              const SizedBox(width: 16),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${points.currentPoints} pts',
+                    '${points.currentPoints}',
                     style: const TextStyle(
                       color: Colors.white,
-                      fontSize: 28,
+                      fontSize: 32,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   Text(
                     'Value: ${points.pointsValueFormatted}',
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 16,
-                    ),
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 16.0),
+          const SizedBox(height: 24),
+          const Divider(color: Colors.white24),
+          const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildPointsInfoItem(
-                'Lifetime',
-                '${points.lifetimePoints} pts',
-                Icons.history,
+              _buildStatItem(
+                'Lifetime Points',
+                points.lifetimePoints.toString(),
+                '₱${points.lifetimeValuePHP.toStringAsFixed(2)}',
               ),
-              _buildPointsInfoItem(
-                'Redeemed',
-                '${points.redeemedPoints} pts',
-                Icons.redeem,
-              ),
-              _buildPointsInfoItem(
-                'Pending',
-                '${points.pendingPoints} pts',
-                Icons.hourglass_empty,
+              _buildStatItem(
+                'Redeemed Points',
+                points.redeemedPoints.toString(),
+                '₱${points.redeemedValuePHP.toStringAsFixed(2)}',
               ),
             ],
           ),
-          const SizedBox(height: 16.0),
-          Center(
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pushNamed('/rewards', arguments: {
-                  'availablePoints': state.points.currentPoints,
-                });
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 32.0,
-                  vertical: 12.0,
+          const SizedBox(height: 16),
+          if (points.pendingPoints > 0)
+            _buildStatItem(
+              'Pending Points',
+              points.pendingPoints.toString(),
+              'Will be added soon',
+              icon: Icons.hourglass_top,
+              iconColor: Colors.amber,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(
+    String label,
+    String value,
+    String subtext, {
+    IconData? icon,
+    Color? iconColor,
+  }) {
+    return Row(
+      children: [
+        if (icon != null) ...[
+          Icon(icon, color: iconColor ?? Colors.white70, size: 16),
+          const SizedBox(width: 8),
+        ],
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            Text(
+              subtext,
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildExpiringPointsCard(BuildContext context, LoyaltyState state) {
+    final expiringPoints = (state.loyaltyPoints!.currentPoints * 0.1).round();
+
+    return SimpleGlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Expiring Points',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.access_time, color: Colors.amber, size: 24),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      expiringPoints > 0
+                          ? '$expiringPoints points expiring in 30 days'
+                          : 'No points expiring soon',
+                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Redeem your points before they expire to get maximum benefits',
+                      style: TextStyle(color: Colors.white70, fontSize: 14),
+                    ),
+                  ],
                 ),
               ),
-              child: const Text('Redeem Points'),
-            ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildExpiringPointsCard(BuildContext context, LoyaltyLoaded state) {
-    if (state.expiringPoints <= 0) {
-      return const SizedBox.shrink();
-    }
-    
-    return SimpleGlassCard(
-      padding: const EdgeInsets.all(16.0),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12.0),
-            decoration: const BoxDecoration(
-              color: Colors.orange,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.access_time,
-              color: Colors.white,
-              size: 24.0,
-            ),
-          ),
-          const SizedBox(width: 16.0),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Points Expiring Soon',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4.0),
-                Text(
-                  '${state.expiringPoints} points will expire in 30 days',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 14,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget _buildTransactionHistory(BuildContext context, LoyaltyState state) {
+    final transactions = state.transactions;
 
-  Widget _buildTransactionHistory(BuildContext context, LoyaltyLoaded state) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Transaction History',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Transaction History',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                // Filter implementation
+              },
+              child: Row(
+                children: [
+                  const Text('Filter', style: TextStyle(color: Colors.white)),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.filter_list, color: Colors.white, size: 16),
+                ],
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 16.0),
-        ...state.transactions.map((transaction) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12.0),
-            child: PointsTransactionItem(transaction: transaction),
-          );
-        }).toList(),
+        const SizedBox(height: 16),
+        if (transactions.isEmpty)
+          const SimpleGlassCard(
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(
+                child: Text(
+                  'No transactions yet',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ),
+          )
+        else
+          ...transactions.map((transaction) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: loyalty.LoyaltyTransactionItem(transaction: transaction),
+            );
+          }).toList(),
       ],
     );
   }
-
-  Widget _buildPointsInfoItem(String title, String value, IconData icon) {
-    return Column(
-      children: [
-        Icon(
-          icon,
-          color: Colors.white70,
-          size: 24.0,
-        ),
-        const SizedBox(height: 8.0),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 12,
-          ),
-        ),
-      ],
-    );
-  }
-} 
+}
