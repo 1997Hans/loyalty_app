@@ -20,6 +20,8 @@ import 'package:loyalty_app/features/loyalty/ui/widgets/loyalty_card.dart';
 import 'package:loyalty_app/features/loyalty/ui/widgets/loyalty_transaction_item.dart';
 import 'package:loyalty_app/features/loyalty/ui/screens/woocommerce_sync_screen.dart';
 import 'package:loyalty_app/features/auth/bloc/auth_bloc.dart' as auth_bloc;
+import 'package:loyalty_app/core/animations/animations.dart';
+import 'package:flutter/scheduler.dart';
 
 class LoyaltyDashboardScreen extends StatefulWidget {
   const LoyaltyDashboardScreen({super.key});
@@ -29,7 +31,7 @@ class LoyaltyDashboardScreen extends StatefulWidget {
 }
 
 class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
-    with AutomaticKeepAliveClientMixin {
+    with AutomaticKeepAliveClientMixin, TickerProviderStateMixin {
   @override
   bool get wantKeepAlive => true;
 
@@ -137,13 +139,35 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildWelcomeHeader(context),
+                    FadeSlideTransition.fromController(
+                      controller: AnimationController(
+                        vsync: this,
+                        duration: const Duration(milliseconds: 600),
+                      )..forward(),
+                      beginOffset: const Offset(0, 0.2),
+                      child: _buildWelcomeHeader(context),
+                    ),
                     const SizedBox(height: 24),
-                    _buildPointsSummaryCard(context, emptyPoints),
+                    AnimatedCard(
+                      duration: const Duration(milliseconds: 800),
+                      child: _buildPointsSummaryCard(context, emptyPoints),
+                    ),
                     const SizedBox(height: 24),
-                    _buildQuickRedeemCard(context, emptyPoints),
+                    AnimatedCard(
+                      duration: const Duration(milliseconds: 800),
+                      beginOpacity: 0.0,
+                      beginScale: 0.95,
+                      curve: Curves.easeOutQuint,
+                      child: _buildQuickRedeemCard(context, emptyPoints),
+                    ),
                     const SizedBox(height: 24),
-                    _buildRecentActivityCard(context, state),
+                    AnimatedCard(
+                      duration: const Duration(milliseconds: 800),
+                      beginOpacity: 0.0,
+                      beginScale: 0.95,
+                      curve: Curves.easeOutQuint,
+                      child: _buildRecentActivityCard(context, state),
+                    ),
                   ],
                 ),
               ),
@@ -166,13 +190,35 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildWelcomeHeader(context),
+                  FadeSlideTransition.fromController(
+                    controller: AnimationController(
+                      vsync: this,
+                      duration: const Duration(milliseconds: 600),
+                    )..forward(),
+                    beginOffset: const Offset(0, 0.2),
+                    child: _buildWelcomeHeader(context),
+                  ),
                   const SizedBox(height: 24),
-                  _buildPointsSummaryCard(context, points),
+                  AnimatedCard(
+                    duration: const Duration(milliseconds: 800),
+                    child: _buildPointsSummaryCard(context, points),
+                  ),
                   const SizedBox(height: 24),
-                  _buildQuickRedeemCard(context, points),
+                  AnimatedCard(
+                    duration: const Duration(milliseconds: 800),
+                    beginOpacity: 0.0,
+                    beginScale: 0.95,
+                    curve: Curves.easeOutQuint,
+                    child: _buildQuickRedeemCard(context, points),
+                  ),
                   const SizedBox(height: 24),
-                  _buildRecentActivityCard(context, state),
+                  AnimatedCard(
+                    duration: const Duration(milliseconds: 800),
+                    beginOpacity: 0.0,
+                    beginScale: 0.95,
+                    curve: Curves.easeOutQuint,
+                    child: _buildRecentActivityCard(context, state),
+                  ),
                 ],
               ),
             ),
@@ -242,8 +288,8 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '${points.currentPoints}',
+                    AnimatedCounter(
+                      value: points.currentPoints,
                       style: const TextStyle(
                         fontSize: 32,
                         fontWeight: FontWeight.bold,

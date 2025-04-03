@@ -14,6 +14,7 @@ import 'package:loyalty_app/features/loyalty/ui/widgets/points_transaction_item.
 import 'package:loyalty_app/features/loyalty/ui/widgets/loyalty_transaction_item.dart'
     as loyalty;
 import 'package:loyalty_app/features/loyalty/ui/widgets/points_summary_card.dart';
+import 'package:loyalty_app/core/animations/animations.dart';
 
 class LoyaltyPointsScreen extends StatefulWidget {
   const LoyaltyPointsScreen({super.key});
@@ -22,7 +23,8 @@ class LoyaltyPointsScreen extends StatefulWidget {
   State<LoyaltyPointsScreen> createState() => _LoyaltyPointsScreenState();
 }
 
-class _LoyaltyPointsScreenState extends State<LoyaltyPointsScreen> {
+class _LoyaltyPointsScreenState extends State<LoyaltyPointsScreen>
+    with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
@@ -117,11 +119,76 @@ class _LoyaltyPointsScreenState extends State<LoyaltyPointsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildPointsBalanceCard(context, points),
+          AnimatedCard(child: _buildPointsBalanceCard(context, points)),
           const SizedBox(height: 24),
-          _buildExpiringPointsCard(context, points),
+          AnimatedCard(
+            beginScale: 0.97,
+            beginOpacity: 0.0,
+            duration: const Duration(milliseconds: 700),
+            curve: Curves.easeOutQuart,
+            child: _buildExpiringPointsCard(context, points),
+          ),
           const SizedBox(height: 24),
-          _buildTransactionHistory(context, transactions),
+          FadeSlideTransition.fromController(
+            controller: AnimationController(
+              vsync: this,
+              duration: const Duration(milliseconds: 600),
+            )..forward(),
+            child: const Text(
+              'Transaction History',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (transactions.isEmpty)
+            AnimatedCard(
+              beginScale: 0.95,
+              beginOpacity: 0.0,
+              duration: const Duration(milliseconds: 800),
+              curve: Curves.easeOutQuart,
+              child: SimpleGlassCard(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      const Icon(
+                        Icons.history,
+                        color: Colors.white54,
+                        size: 36,
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'No transactions yet',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Transactions will appear here after you make purchases',
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          else
+            StaggeredList(
+              children: [
+                for (int i = 0; i < transactions.length; i++) ...[
+                  loyalty.LoyaltyTransactionItem(transaction: transactions[i]),
+                  if (i < transactions.length - 1) const SizedBox(height: 8),
+                ],
+              ],
+            ),
         ],
       ),
     );
@@ -148,8 +215,8 @@ class _LoyaltyPointsScreenState extends State<LoyaltyPointsScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '${points.currentPoints}',
+                  AnimatedCounter(
+                    value: points.currentPoints,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 32,
@@ -278,57 +345,6 @@ class _LoyaltyPointsScreenState extends State<LoyaltyPointsScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildTransactionHistory(
-    BuildContext context,
-    List<PointsTransaction> transactions,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Transaction History',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 16),
-        if (transactions.isEmpty)
-          SimpleGlassCard(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  const Icon(Icons.history, color: Colors.white54, size: 36),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'No transactions yet',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Transactions will appear here after you make purchases',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
-          )
-        else
-          for (int i = 0; i < transactions.length; i++) ...[
-            loyalty.LoyaltyTransactionItem(transaction: transactions[i]),
-            if (i < transactions.length - 1) const SizedBox(height: 8),
-          ],
-      ],
     );
   }
 }

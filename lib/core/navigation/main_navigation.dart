@@ -6,6 +6,7 @@ import 'package:loyalty_app/features/loyalty/ui/screens/loyalty_dashboard_screen
 import 'package:loyalty_app/features/loyalty/ui/screens/loyalty_points_screen.dart';
 import 'package:loyalty_app/features/loyalty/ui/screens/points_redemption_screen.dart';
 import 'package:loyalty_app/features/loyalty/ui/screens/woocommerce_sync_screen.dart';
+import 'package:loyalty_app/core/animations/animations.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -14,8 +15,10 @@ class MainNavigation extends StatefulWidget {
   State<MainNavigation> createState() => _MainNavigationState();
 }
 
-class _MainNavigationState extends State<MainNavigation> {
+class _MainNavigationState extends State<MainNavigation>
+    with TickerProviderStateMixin {
   int _selectedIndex = 0;
+  late final AnimationController _pageTransitionController;
 
   // Cache bloc instance to ensure it's the same throughout the app
   late final LoyaltyBloc _loyaltyBloc;
@@ -26,8 +29,21 @@ class _MainNavigationState extends State<MainNavigation> {
     // Get the bloc instance once and use it consistently
     _loyaltyBloc = getIt<LoyaltyBloc>();
 
+    // Initialize animation controller for page transitions
+    _pageTransitionController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _pageTransitionController.forward();
+
     // Trigger initial data loading immediately
     _loadInitialData();
+  }
+
+  @override
+  void dispose() {
+    _pageTransitionController.dispose();
+    super.dispose();
   }
 
   // Load all initial data when app starts
@@ -64,6 +80,22 @@ class _MainNavigationState extends State<MainNavigation> {
       case 3: // Profile
         // No specific data needs to be loaded
         break;
+    }
+  }
+
+  // Handle tab changes with animation
+  void _handleTabChange(int index) {
+    if (_selectedIndex != index) {
+      // Reset animation and play it again
+      _pageTransitionController.reset();
+      _pageTransitionController.forward();
+
+      setState(() {
+        _selectedIndex = index;
+      });
+
+      // Load appropriate data when tab changes
+      _loadDataForCurrentTab();
     }
   }
 
@@ -116,14 +148,7 @@ class _MainNavigationState extends State<MainNavigation> {
                     child: BottomNavigationBar(
                       currentIndex: _selectedIndex,
                       onTap: (index) {
-                        if (_selectedIndex != index) {
-                          setState(() {
-                            _selectedIndex = index;
-                          });
-
-                          // Load appropriate data when tab changes
-                          _loadDataForCurrentTab();
-                        }
+                        _handleTabChange(index);
                       },
                       type: BottomNavigationBarType.fixed,
                       backgroundColor: const Color(0xFF1E1E1E),
@@ -165,29 +190,40 @@ class _MainNavigationState extends State<MainNavigation> {
     );
   }
 
-  // Helper method to build the appropriate body based on selected index
+  // Helper method to build the appropriate body based on selected index with animation
   Widget _buildBody() {
-    switch (_selectedIndex) {
-      case 0:
-        return const LoyaltyDashboardScreen();
-      case 1:
-        return const LoyaltyPointsScreen();
-      case 2:
-        return BlocBuilder<LoyaltyBloc, LoyaltyState>(
-          builder: (context, state) {
-            print('Building rewards screen with state: ${state.status}');
-            int points = 0;
-            if (state.status == LoyaltyStatus.loaded &&
-                state.loyaltyPoints != null) {
-              points = state.loyaltyPoints!.currentPoints;
-            }
-            return PointsRedemptionScreen(availablePoints: points);
-          },
-        );
-      case 3:
-        return const WooCommerceSyncScreen();
-      default:
-        return const LoyaltyDashboardScreen();
-    }
+    final screens = [
+      const LoyaltyDashboardScreen(),
+      const LoyaltyPointsScreen(),
+      BlocBuilder<LoyaltyBloc, LoyaltyState>(
+        builder: (context, state) {
+          print('Building rewards screen with state: ${state.status}');
+          int points = 0;
+          if (state.status == LoyaltyStatus.loaded &&
+              state.loyaltyPoints != null) {
+            points = state.loyaltyPoints!.currentPoints;
+          }
+          return PointsRedemptionScreen(availablePoints: points);
+        },
+      ),
+      const WooCommerceSyncScreen(),
+    ];
+
+    // Apply fade transition to the selected screen
+    return FadeTransition(
+      opacity: _pageTransitionController,
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0.1, 0),
+          end: Offset.zero,
+        ).animate(
+          CurvedAnimation(
+            parent: _pageTransitionController,
+            curve: Curves.easeOutCubic,
+          ),
+        ),
+        child: screens[_selectedIndex],
+      ),
+    );
   }
 }

@@ -7,6 +7,7 @@ import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/core/utils/gradient_background.dart';
 import 'package:loyalty_app/features/loyalty/bloc/loyalty_bloc.dart';
 import 'package:loyalty_app/features/loyalty/ui/screens/woocommerce_sync_screen.dart';
+import 'package:loyalty_app/core/animations/animations.dart';
 
 class PointsRedemptionScreen extends StatefulWidget {
   final int availablePoints;
@@ -17,7 +18,8 @@ class PointsRedemptionScreen extends StatefulWidget {
   State<PointsRedemptionScreen> createState() => _PointsRedemptionScreenState();
 }
 
-class _PointsRedemptionScreenState extends State<PointsRedemptionScreen> {
+class _PointsRedemptionScreenState extends State<PointsRedemptionScreen>
+    with TickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _pointsController = TextEditingController();
   int _pointsToRedeem = 0;
@@ -180,15 +182,39 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildAvailablePointsCard(),
+                        AnimatedCard(
+                          beginScale: 0.95,
+                          beginOpacity: 0.0,
+                          duration: const Duration(milliseconds: 600),
+                          child: _buildAvailablePointsCard(),
+                        ),
                         const SizedBox(height: 24.0),
-                        _buildRedemptionForm(context),
+                        AnimatedCard(
+                          beginScale: 0.95,
+                          beginOpacity: 0.0,
+                          duration: const Duration(milliseconds: 700),
+                          curve: Curves.easeOutQuart,
+                          child: _buildRedemptionForm(context),
+                        ),
                         const SizedBox(height: 24.0),
-                        _buildRedemptionSummary(),
+                        AnimatedCard(
+                          beginScale: 0.95,
+                          beginOpacity: 0.0,
+                          duration: const Duration(milliseconds: 800),
+                          curve: Curves.easeOutQuart,
+                          child: _buildRedemptionSummary(),
+                        ),
                         const SizedBox(height: 32.0),
-                        _buildRedeemButton(
-                          state.status == LoyaltyStatus.loading ||
-                              availablePoints < _pointsToRedeem,
+                        FadeSlideTransition.fromController(
+                          controller: AnimationController(
+                            vsync: this,
+                            duration: const Duration(milliseconds: 900),
+                          )..forward(),
+                          beginOffset: const Offset(0, 0.2),
+                          child: _buildRedeemButton(
+                            state.status == LoyaltyStatus.loading ||
+                                availablePoints < _pointsToRedeem,
+                          ),
                         ),
                       ],
                     ),
@@ -223,8 +249,9 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '${widget.availablePoints} pts',
+                  AnimatedCounter(
+                    value: widget.availablePoints,
+                    suffix: ' pts',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 28,
