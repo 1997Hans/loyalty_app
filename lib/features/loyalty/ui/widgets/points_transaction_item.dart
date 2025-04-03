@@ -5,10 +5,7 @@ import 'package:loyalty_app/features/loyalty/domain/models/points_transaction.da
 class PointsTransactionItem extends StatelessWidget {
   final PointsTransaction transaction;
 
-  const PointsTransactionItem({
-    super.key,
-    required this.transaction,
-  });
+  const PointsTransactionItem({super.key, required this.transaction});
 
   @override
   Widget build(BuildContext context) {
@@ -33,17 +30,21 @@ class PointsTransactionItem extends StatelessWidget {
                 const SizedBox(height: 4.0),
                 Text(
                   transaction.formattedDate,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                  ),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
                 ),
-                if (transaction.referenceId != null) ...[
+                if (transaction.orderId != null) ...[
                   const SizedBox(height: 4.0),
                   Text(
-                    'Ref: ${transaction.referenceId}',
-                    style: const TextStyle(
-                      color: Colors.white70,
+                    'Order: ${transaction.orderId}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                ],
+                if (transaction.status != TransactionStatus.completed) ...[
+                  const SizedBox(height: 4.0),
+                  Text(
+                    'Status: ${transaction.status.toString().split('.').last}',
+                    style: TextStyle(
+                      color: _getStatusColor(transaction.status),
                       fontSize: 12,
                     ),
                   ),
@@ -87,23 +88,19 @@ class PointsTransactionItem extends StatelessWidget {
         color: _getIconBackgroundColor(),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Icon(
-        _getTransactionIcon(),
-        color: Colors.white,
-        size: 20,
-      ),
+      child: Icon(_getTransactionIcon(), color: Colors.white, size: 20),
     );
   }
 
   IconData _getTransactionIcon() {
     switch (transaction.type) {
-      case PointsTransactionType.earned:
-        return Icons.add_circle;
-      case PointsTransactionType.redeemed:
+      case PointsTransactionType.purchase:
+        return Icons.shopping_cart;
+      case PointsTransactionType.redemption:
         return Icons.redeem;
       case PointsTransactionType.expired:
         return Icons.access_time;
-      case PointsTransactionType.adjusted:
+      case PointsTransactionType.adjustment:
         return Icons.sync;
       case PointsTransactionType.bonus:
         return Icons.stars;
@@ -112,24 +109,37 @@ class PointsTransactionItem extends StatelessWidget {
 
   Color _getIconBackgroundColor() {
     switch (transaction.type) {
-      case PointsTransactionType.earned:
+      case PointsTransactionType.purchase:
         return Colors.green;
-      case PointsTransactionType.redeemed:
+      case PointsTransactionType.redemption:
         return Colors.blue;
       case PointsTransactionType.expired:
         return Colors.red;
-      case PointsTransactionType.adjusted:
-        return transaction.isPositive ? Colors.purple : Colors.orange;
+      case PointsTransactionType.adjustment:
+        return transaction.isEarning ? Colors.purple : Colors.orange;
       case PointsTransactionType.bonus:
         return Colors.amber;
     }
   }
 
   Color _getPointsColor() {
-    if (transaction.isPositive) {
+    if (transaction.isEarning) {
       return Colors.green;
     } else {
       return Colors.red;
     }
   }
-} 
+
+  Color _getStatusColor(TransactionStatus status) {
+    switch (status) {
+      case TransactionStatus.pending:
+        return Colors.amber;
+      case TransactionStatus.completed:
+        return Colors.green;
+      case TransactionStatus.failed:
+        return Colors.red;
+      case TransactionStatus.canceled:
+        return Colors.grey;
+    }
+  }
+}

@@ -35,10 +35,7 @@ class RedeemLoyaltyPoints extends LoyaltyEvent {
   final int points;
   final String description;
 
-  const RedeemLoyaltyPoints({
-    required this.points,
-    required this.description,
-  });
+  const RedeemLoyaltyPoints({required this.points, required this.description});
 
   @override
   List<Object> get props => [points, description];
@@ -48,10 +45,7 @@ class AddBonusPoints extends LoyaltyEvent {
   final int points;
   final String description;
 
-  const AddBonusPoints({
-    required this.points,
-    required this.description,
-  });
+  const AddBonusPoints({required this.points, required this.description});
 
   @override
   List<Object> get props => [points, description];
@@ -75,7 +69,7 @@ class RedeemPoints extends LoyaltyEvent {
 // States
 abstract class LoyaltyState extends Equatable {
   const LoyaltyState();
-  
+
   @override
   List<Object?> get props => [];
 }
@@ -98,7 +92,12 @@ class LoyaltyLoaded extends LoyaltyState {
   });
 
   @override
-  List<Object?> get props => [points, transactions, expiringPoints, lastRedemption];
+  List<Object?> get props => [
+    points,
+    transactions,
+    expiringPoints,
+    lastRedemption,
+  ];
 }
 
 class LoyaltyError extends LoyaltyState {
@@ -144,8 +143,8 @@ class LoyaltyBloc extends Bloc<LoyaltyEvent, LoyaltyState> {
   StreamSubscription? _transactionsSubscription;
 
   LoyaltyBloc({LoyaltyRepository? repository})
-      : _repository = repository ?? LoyaltyRepository(),
-        super(LoyaltyInitial()) {
+    : _repository = repository ?? LoyaltyRepository(),
+      super(LoyaltyInitial()) {
     on<LoadLoyaltyData>(_onLoadLoyaltyData);
     on<AddPurchasePoints>(_onAddPurchasePoints);
     on<RedeemLoyaltyPoints>(_onRedeemLoyaltyPoints);
@@ -156,7 +155,7 @@ class LoyaltyBloc extends Bloc<LoyaltyEvent, LoyaltyState> {
     _pointsSubscription = _repository.pointsStream.listen((_) {
       add(LoadLoyaltyData());
     });
-    
+
     _transactionsSubscription = _repository.transactionsStream.listen((_) {
       add(LoadLoyaltyData());
     });
@@ -171,12 +170,14 @@ class LoyaltyBloc extends Bloc<LoyaltyEvent, LoyaltyState> {
       final points = await _repository.getLoyaltyPoints();
       final transactions = await _repository.getPointsTransactions();
       final expiringPoints = await _repository.getExpiringPoints();
-      
-      emit(LoyaltyLoaded(
-        points: points,
-        transactions: transactions,
-        expiringPoints: expiringPoints,
-      ));
+
+      emit(
+        LoyaltyLoaded(
+          points: points,
+          transactions: transactions,
+          expiringPoints: expiringPoints,
+        ),
+      );
     } catch (e) {
       emit(LoyaltyError(e.toString()));
     }
@@ -207,12 +208,9 @@ class LoyaltyBloc extends Bloc<LoyaltyEvent, LoyaltyState> {
         pointsToRedeem: event.points,
         description: event.description,
       );
-      
+
       final value = _repository.calculatePointsValue(event.points);
-      emit(PointsRedemptionSuccess(
-        pointsRedeemed: event.points,
-        value: value,
-      ));
+      emit(PointsRedemptionSuccess(pointsRedeemed: event.points, value: value));
       // Then load updated loyalty data
       add(LoadLoyaltyData());
     } catch (e) {
@@ -246,14 +244,15 @@ class LoyaltyBloc extends Bloc<LoyaltyEvent, LoyaltyState> {
       // Check if user has enough points
       if (currentPoints.currentPoints >= event.pointsRequired) {
         emit(LoyaltyLoading());
-        
+
         try {
           // Process the redemption through the repository
           await _repository.redeemPoints(
             pointsToRedeem: event.pointsRequired,
-            description: 'Redeemed for ${event.rewardTitle}: ${event.rewardDescription}',
+            description:
+                'Redeemed for ${event.rewardTitle}: ${event.rewardDescription}',
           );
-          
+
           // Then load updated loyalty data
           add(LoadLoyaltyData());
         } catch (e) {
@@ -275,4 +274,4 @@ class LoyaltyBloc extends Bloc<LoyaltyEvent, LoyaltyState> {
     _repository.dispose();
     return super.close();
   }
-} 
+}
