@@ -14,8 +14,22 @@ import 'package:loyalty_app/features/loyalty/ui/widgets/loyalty_transaction_item
     as loyalty;
 import 'package:loyalty_app/features/loyalty/ui/widgets/points_summary_card.dart';
 
-class LoyaltyPointsScreen extends StatelessWidget {
+class LoyaltyPointsScreen extends StatefulWidget {
   const LoyaltyPointsScreen({super.key});
+
+  @override
+  State<LoyaltyPointsScreen> createState() => _LoyaltyPointsScreenState();
+}
+
+class _LoyaltyPointsScreenState extends State<LoyaltyPointsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Load fresh data when screen is shown
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<LoyaltyBloc>().add(LoadPointsTransactions());
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

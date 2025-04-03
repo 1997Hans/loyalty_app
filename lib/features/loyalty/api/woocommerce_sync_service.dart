@@ -31,11 +31,16 @@ class WooCommerceSyncService {
   Stream<String> get syncStatus => _syncStatusController.stream;
   bool get isAutomaticSyncEnabled => AppConfig.enableAutomaticPointsAward;
   bool get isSyncing => _isSyncing;
+  int? get customerId => _customerId;
 
   // Set customer ID
-  set customerId(int id) {
+  set customerId(int? id) {
     _customerId = id;
-    _addSyncStatus('Customer ID updated to: $id');
+    if (id != null) {
+      _addSyncStatus('Customer ID updated to: $id');
+    } else {
+      _addSyncStatus('Customer ID cleared');
+    }
   }
 
   WooCommerceSyncService({

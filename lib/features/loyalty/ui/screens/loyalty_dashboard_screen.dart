@@ -27,18 +27,25 @@ class LoyaltyDashboardScreen extends StatefulWidget {
   State<LoyaltyDashboardScreen> createState() => _LoyaltyDashboardScreenState();
 }
 
-class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen> {
+class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   @override
   void initState() {
     super.initState();
-    // Set context for the bloc on initialization
+    // Trigger data loading when screen is shown
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<bloc.LoyaltyBloc>().add(bloc.SetContext(context));
+      final loyaltyBloc = context.read<bloc.LoyaltyBloc>();
+      loyaltyBloc.add(bloc.SetContext(context));
+      loyaltyBloc.add(bloc.LoadPointsTransactions());
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
     return Scaffold(
       appBar: AppBar(title: const Text('Loyalty Dashboard')),
       body: BlocListener<bloc.LoyaltyBloc, bloc.LoyaltyState>(

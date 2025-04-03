@@ -14,15 +14,12 @@ class WooCommerceSyncScreen extends StatefulWidget {
 }
 
 class _WooCommerceSyncScreenState extends State<WooCommerceSyncScreen> {
-  final WooCommerceSyncService _syncService = getIt<WooCommerceSyncService>();
-  final List<String> _syncLogs = [];
+  final TextEditingController _customerIdController = TextEditingController();
+  List<String> _syncLogs = [];
   bool _isAutoSyncEnabled = AppConfig.enableAutomaticPointsAward;
   bool _isSyncing = false;
-
-  // Customer ID field controller
-  final TextEditingController _customerIdController = TextEditingController(
-    text: '1',
-  );
+  bool _isInitialized = false;
+  late WooCommerceSyncService _syncService;
 
   // API information for diagnostics
   final String _apiUrl = AppConfig.woocommerceBaseUrl;
@@ -32,7 +29,17 @@ class _WooCommerceSyncScreenState extends State<WooCommerceSyncScreen> {
   @override
   void initState() {
     super.initState();
-    _subscribeToSyncStatus();
+    _syncService = getIt<WooCommerceSyncService>();
+
+    // Initialize the controller with current ID if set
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Load current customer ID if available
+      if (_syncService.customerId != null) {
+        _customerIdController.text = _syncService.customerId.toString();
+      }
+      _subscribeToSyncStatus();
+      _isInitialized = true;
+    });
   }
 
   void _subscribeToSyncStatus() {
