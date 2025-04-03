@@ -46,8 +46,7 @@ class _LoyaltyPointsScreenState extends State<LoyaltyPointsScreen> {
           builder: (context, state) {
             print('LoyaltyPointsScreen: Building with state ${state.status}');
 
-            if (state.status == LoyaltyStatus.initial ||
-                state.status == LoyaltyStatus.loading) {
+            if (state.status == LoyaltyStatus.initial) {
               return const Center(child: CircularProgressIndicator());
             }
 
@@ -75,89 +74,53 @@ class _LoyaltyPointsScreenState extends State<LoyaltyPointsScreen> {
               );
             }
 
-            if (state.loyaltyPoints == null) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.history_toggle_off,
-                      color: Colors.amber,
-                      size: 80,
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'No loyalty data available',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 32),
-                      child: Text(
-                        'Points will appear here after you make purchases through the WooCommerce store',
-                        style: TextStyle(color: Colors.white70),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: () {
-                        context.read<LoyaltyBloc>().add(
-                          LoadPointsTransactions(),
-                        );
-                      },
-                      child: const Text('Refresh'),
-                    ),
-                    const SizedBox(height: 16),
-                    TextButton.icon(
-                      icon: const Icon(Icons.settings),
-                      label: const Text('Go to WooCommerce Settings'),
-                      onPressed: () {
-                        // Navigate to tab 3 (Profile/Settings)
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const WooCommerceSyncScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              );
-            }
+            // Create default points object if none is available
+            final points =
+                state.loyaltyPoints ??
+                LoyaltyPoints(
+                  currentPoints: 0,
+                  lifetimePoints: 0,
+                  redeemedPoints: 0,
+                  pendingPoints: 0,
+                );
 
-            return _buildContent(context, state);
+            return RefreshIndicator(
+              onRefresh: () async {
+                context.read<LoyaltyBloc>().add(LoadPointsTransactions());
+                await Future.delayed(const Duration(milliseconds: 500));
+              },
+              child: _buildContent(context, state, points),
+            );
           },
         ),
       ),
     );
   }
 
-  Widget _buildContent(BuildContext context, LoyaltyState state) {
+  Widget _buildContent(
+    BuildContext context,
+    LoyaltyState state,
+    LoyaltyPoints points,
+  ) {
+    final transactions = state.transactions ?? [];
+
     return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildPointsBalanceCard(context, state),
+          _buildPointsBalanceCard(context, points),
           const SizedBox(height: 24),
-          _buildExpiringPointsCard(context, state),
+          _buildExpiringPointsCard(context, points),
           const SizedBox(height: 24),
-          _buildTransactionHistory(context, state),
+          _buildTransactionHistory(context, transactions),
         ],
       ),
     );
   }
 
-  Widget _buildPointsBalanceCard(BuildContext context, LoyaltyState state) {
-    final points = state.loyaltyPoints!;
-
+  Widget _buildPointsBalanceCard(BuildContext context, LoyaltyPoints points) {
     return SimpleGlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,8 +228,8 @@ class _LoyaltyPointsScreenState extends State<LoyaltyPointsScreen> {
     );
   }
 
-  Widget _buildExpiringPointsCard(BuildContext context, LoyaltyState state) {
-    final expiringPoints = (state.loyaltyPoints!.currentPoints * 0.1).round();
+  Widget _buildExpiringPointsCard(BuildContext context, LoyaltyPoints points) {
+    final expiringPoints = (points.currentPoints * 0.1).round();
 
     return SimpleGlassCard(
       child: Column(
@@ -311,57 +274,53 @@ class _LoyaltyPointsScreenState extends State<LoyaltyPointsScreen> {
     );
   }
 
-  Widget _buildTransactionHistory(BuildContext context, LoyaltyState state) {
-    final transactions = state.transactions;
-
+  Widget _buildTransactionHistory(
+    BuildContext context,
+    List<PointsTransaction> transactions,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'Transaction History',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            TextButton(
-              onPressed: () {
-                // Filter implementation
-              },
-              child: Row(
-                children: [
-                  const Text('Filter', style: TextStyle(color: Colors.white)),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.filter_list, color: Colors.white, size: 16),
-                ],
-              ),
-            ),
-          ],
+        const Text(
+          'Transaction History',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         const SizedBox(height: 16),
         if (transactions.isEmpty)
-          const SimpleGlassCard(
+          SimpleGlassCard(
             child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(
-                child: Text(
-                  'No transactions yet',
-                  style: TextStyle(color: Colors.white),
-                ),
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  const Icon(Icons.history, color: Colors.white54, size: 36),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'No transactions yet',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Transactions will appear here after you make purchases',
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
               ),
             ),
           )
         else
-          ...transactions.map((transaction) {
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: loyalty.LoyaltyTransactionItem(transaction: transaction),
-            );
-          }),
+          for (int i = 0; i < transactions.length; i++) ...[
+            loyalty.LoyaltyTransactionItem(transaction: transactions[i]),
+            if (i < transactions.length - 1) const SizedBox(height: 8),
+          ],
       ],
     );
   }

@@ -29,7 +29,7 @@ class WooCommerceSyncService {
 
   // Getters
   Stream<String> get syncStatus => _syncStatusController.stream;
-  bool get isAutomaticSyncEnabled => AppConfig.enableAutomaticPointsAward;
+  bool get isAutomaticSyncEnabled => true;
   bool get isSyncing => _isSyncing;
   int? get customerId => _customerId;
 
@@ -38,8 +38,11 @@ class WooCommerceSyncService {
     _customerId = id;
     if (id != null) {
       _addSyncStatus('Customer ID updated to: $id');
+      // Automatically start sync whenever customer ID is set
+      startBackgroundSync(syncInterval: const Duration(minutes: 5));
     } else {
       _addSyncStatus('Customer ID cleared');
+      stopBackgroundSync();
     }
   }
 
@@ -72,13 +75,6 @@ class WooCommerceSyncService {
 
       // Cancel any existing timer
       _syncTimer?.cancel();
-
-      if (!AppConfig.enableAutomaticPointsAward) {
-        _addSyncStatus(
-          'Automatic points award is disabled in config. Background sync not started.',
-        );
-        return;
-      }
 
       if (_customerId == null) {
         _addSyncStatus('Customer ID not set. Background sync not started.');

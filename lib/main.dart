@@ -36,16 +36,8 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Start WooCommerce sync service with a delay to avoid blocking app startup
-    // This will run after the app is visible to the user
-    Future.delayed(const Duration(seconds: 2), () {
-      try {
-        final syncService = getIt<WooCommerceSyncService>();
-        syncService.startBackgroundSync();
-      } catch (e) {
-        print('Error starting WooCommerce sync service: $e');
-      }
-    });
+    // Don't start WooCommerce sync service here - it will now be started after authentication
+    // This prevents unnecessary sync attempts before the user is logged in
 
     return MultiBlocProvider(
       providers: [

@@ -168,15 +168,12 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen> {
                 'PointsRedemptionScreen: Building with state ${state.status}',
               );
 
-              if (state.status == LoyaltyStatus.initial ||
-                  state.status == LoyaltyStatus.loading) {
+              if (state.status == LoyaltyStatus.initial) {
                 return const Center(child: CircularProgressIndicator());
               }
 
-              // Show special UI if user has no points
-              if (widget.availablePoints <= 0 || state.loyaltyPoints == null) {
-                return _buildNoPointsAvailable();
-              }
+              // Show the UI regardless of points, with disabled buttons when points are insufficient
+              final availablePoints = widget.availablePoints;
 
               return SingleChildScrollView(
                 child: Padding(
@@ -193,7 +190,8 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen> {
                         _buildRedemptionSummary(),
                         const SizedBox(height: 32.0),
                         _buildRedeemButton(
-                          state.status == LoyaltyStatus.loading,
+                          state.status == LoyaltyStatus.loading ||
+                              availablePoints < _pointsToRedeem,
                         ),
                       ],
                     ),
@@ -203,66 +201,6 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen> {
             },
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildNoPointsAvailable() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.card_giftcard, color: Colors.amber, size: 80),
-          const SizedBox(height: 24),
-          const Text(
-            'No Points Available',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 12),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 32),
-            child: Text(
-              'You need loyalty points to redeem rewards',
-              style: TextStyle(color: Colors.white, fontSize: 16),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 32),
-            child: Text(
-              'Points are earned when you make purchases through our WooCommerce store',
-              style: TextStyle(color: Colors.white70),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 32),
-          ElevatedButton(
-            onPressed: () {
-              context.read<LoyaltyBloc>().add(LoadPointsTransactions());
-            },
-            child: const Text('Refresh'),
-          ),
-          const SizedBox(height: 16),
-          TextButton.icon(
-            icon: const Icon(Icons.settings),
-            label: const Text('Go to Profile Settings'),
-            onPressed: () {
-              // Navigate to tab 3 (Profile/Settings)
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const WooCommerceSyncScreen(),
-                ),
-              );
-            },
-          ),
-        ],
       ),
     );
   }
@@ -328,73 +266,55 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen> {
             decoration: const InputDecoration(
               labelText: 'Redemption Type',
               labelStyle: TextStyle(color: Colors.white70),
-              border: OutlineInputBorder(),
-              enabledBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: Colors.white30),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: Colors.white),
-              ),
             ),
             dropdownColor: AppTheme.cardDarkColor,
             style: const TextStyle(color: Colors.white),
-            items:
-                _redemptionTypes.map((String type) {
-                  return DropdownMenuItem<String>(
-                    value: type,
-                    child: Text(type),
-                  );
-                }).toList(),
-            onChanged: (String? newValue) {
-              if (newValue != null) {
+            onChanged: (value) {
+              if (value != null) {
                 setState(() {
-                  _selectedRedemptionType = newValue;
+                  _selectedRedemptionType = value;
                 });
               }
             },
+            items:
+                _redemptionTypes
+                    .map(
+                      (type) =>
+                          DropdownMenuItem(value: type, child: Text(type)),
+                    )
+                    .toList(),
           ),
-          const SizedBox(height: 16.0),
+          const SizedBox(height: 24.0),
           TextFormField(
             controller: _pointsController,
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               labelText: 'Points to Redeem',
-              labelStyle: const TextStyle(color: Colors.white70),
-              border: const OutlineInputBorder(),
-              enabledBorder: const OutlineInputBorder(
-                borderSide: BorderSide(color: Colors.white30),
-              ),
-              focusedBorder: const OutlineInputBorder(
-                borderSide: BorderSide(color: Colors.white),
-              ),
-              suffixText: 'pts',
-              suffixStyle: const TextStyle(color: Colors.white70),
-              helperText: 'Maximum: ${widget.availablePoints} pts',
-              helperStyle: const TextStyle(color: Colors.white70),
+              labelStyle: TextStyle(color: Colors.white70),
+              hintText: 'Enter points',
+              hintStyle: TextStyle(color: Colors.white30),
+              suffixText: 'points',
+              suffixStyle: TextStyle(color: Colors.white70),
             ),
             style: const TextStyle(color: Colors.white),
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             validator: (value) {
               if (value == null || value.isEmpty) {
-                return 'Please enter points amount';
+                return 'Please enter points to redeem';
               }
-              final points = int.tryParse(value);
-              if (points == null) {
-                return 'Please enter a valid number';
-              }
+
+              final points = int.tryParse(value) ?? 0;
+
               if (points <= 0) {
                 return 'Points must be greater than 0';
               }
+
               if (points > widget.availablePoints) {
-                return 'Insufficient points';
+                return 'You only have ${widget.availablePoints} points available';
               }
+
               return null;
             },
-          ),
-          const SizedBox(height: 8.0),
-          Text(
-            'Exchange rate: 1 pt = ${AppConfig.currencySymbol}${AppConfig.pesosPerPoint.toStringAsFixed(2)}',
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
           ),
         ],
       ),
@@ -402,7 +322,8 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen> {
   }
 
   Widget _buildRedemptionSummary() {
-    final value = _pointsToRedeem * AppConfig.pesosPerPoint;
+    final pointsValue = _pointsToRedeem * AppConfig.pesosPerPoint;
+    final hasEnoughPoints = _pointsToRedeem <= widget.availablePoints;
 
     return SimpleGlassCard(
       child: Column(
@@ -417,73 +338,81 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen> {
             ),
           ),
           const SizedBox(height: 16.0),
-          _buildSummaryRow('Redemption Type:', _selectedRedemptionType),
-          _buildSummaryRow('Points to Redeem:', '$_pointsToRedeem pts'),
+          _buildSummaryRow('Redemption Type', _selectedRedemptionType),
+          const SizedBox(height: 8.0),
+          _buildSummaryRow('Points to Redeem', '$_pointsToRedeem'),
+          const SizedBox(height: 8.0),
           _buildSummaryRow(
-            'Value:',
-            '${AppConfig.currencySymbol}${value.toStringAsFixed(2)}',
+            'Value',
+            '${AppConfig.currencySymbol}${pointsValue.toStringAsFixed(2)}',
           ),
-          _buildSummaryRow(
-            'Remaining Points:',
-            '${widget.availablePoints - _pointsToRedeem} pts',
-          ),
+          const SizedBox(height: 16.0),
+          if (!hasEnoughPoints && _pointsToRedeem > 0)
+            Container(
+              padding: const EdgeInsets.all(8.0),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    color: Colors.red,
+                    size: 16.0,
+                  ),
+                  const SizedBox(width: 8.0),
+                  Expanded(
+                    child: Text(
+                      'Not enough points. You have ${widget.availablePoints} available.',
+                      style: const TextStyle(color: Colors.red, fontSize: 12.0),
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
   }
 
   Widget _buildSummaryRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
-          ),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white70, fontSize: 14.0),
+        ),
+        Text(
+          value,
+          style: const TextStyle(color: Colors.white, fontSize: 14.0),
+        ),
+      ],
     );
   }
 
-  Widget _buildRedeemButton(bool isLoading) {
+  Widget _buildRedeemButton(bool isDisabled) {
     return SizedBox(
       width: double.infinity,
-      height: 50,
       child: ElevatedButton(
-        onPressed:
-            isLoading ||
-                    _pointsToRedeem <= 0 ||
-                    _pointsToRedeem > widget.availablePoints
-                ? null
-                : _redeemPoints,
+        onPressed: isDisabled ? null : _redeemPoints,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppTheme.primaryColor,
-          disabledBackgroundColor: Colors.grey,
+          padding: const EdgeInsets.symmetric(vertical: 16.0),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12.0),
+          ),
+          backgroundColor: Colors.amber,
+          disabledBackgroundColor: Colors.grey.withOpacity(0.3),
         ),
-        child:
-            isLoading
-                ? const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    strokeWidth: 2.0,
-                  ),
-                )
-                : const Text(
-                  'Redeem Now',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+        child: Text(
+          'Redeem Points',
+          style: TextStyle(
+            fontSize: 16.0,
+            fontWeight: FontWeight.bold,
+            color: isDisabled ? Colors.white38 : Colors.black,
+          ),
+        ),
       ),
     );
   }

@@ -19,6 +19,7 @@ import 'package:loyalty_app/features/loyalty/ui/screens/points_redemption_screen
 import 'package:loyalty_app/features/loyalty/ui/widgets/loyalty_card.dart';
 import 'package:loyalty_app/features/loyalty/ui/widgets/loyalty_transaction_item.dart';
 import 'package:loyalty_app/features/loyalty/ui/screens/woocommerce_sync_screen.dart';
+import 'package:loyalty_app/features/auth/bloc/auth_bloc.dart' as auth_bloc;
 
 class LoyaltyDashboardScreen extends StatefulWidget {
   const LoyaltyDashboardScreen({super.key});
@@ -48,7 +49,7 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
     super.build(context); // Required for AutomaticKeepAliveClientMixin
     return Scaffold(
       appBar: AppBar(title: const Text('Loyalty Dashboard')),
-      body: BlocListener<bloc.LoyaltyBloc, bloc.LoyaltyState>(
+      body: BlocConsumer<bloc.LoyaltyBloc, bloc.LoyaltyState>(
         listener: (context, state) {
           // Safe null checks for all state properties
           final status = state.status;
@@ -90,302 +91,46 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
             const bloc.CheckExpiringPoints(),
           );
         },
-        child: BlocBuilder<bloc.LoyaltyBloc, bloc.LoyaltyState>(
-          builder: (context, state) {
-            final status = state.status;
-            final points = state.loyaltyPoints;
+        builder: (context, state) {
+          // Show loading indicator only on initial load
+          if (state.status == bloc.LoyaltyStatus.initial) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-            final isLoading =
-                status == bloc.LoyaltyStatus.initial ||
-                (status == bloc.LoyaltyStatus.loading && points == null);
+          // Even if state is loading, show the previous UI with any available data
+          // This prevents showing loading indicators during refreshes
 
-            if (isLoading) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            final loyaltyPoints = points;
-            if (loyaltyPoints == null) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(20.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.sync_problem,
-                        size: 64,
-                        color: Colors.grey,
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'No loyalty data available',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Your loyalty points will appear here after you make purchases in the store.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                      const SizedBox(height: 24),
-                      ElevatedButton.icon(
-                        onPressed: () {
-                          context.read<bloc.LoyaltyBloc>().add(
-                            bloc.LoadPointsTransactions(),
-                          );
-                        },
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Refresh'),
-                      ),
-                      const SizedBox(height: 12),
-                      TextButton(
-                        onPressed: () {
-                          // Navigate to the Settings tab to set up WooCommerce
-                          int settingsIndex = 3; // Index of the Settings tab
-                          // Use this approach if your navigation is handled via a tab controller
-                          // that's accessible from this context
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder:
-                                  (context) => const WooCommerceSyncScreen(),
-                            ),
-                          );
-                        },
-                        child: const Text('Set Up WooCommerce Integration'),
-                      ),
-                    ],
-                  ),
-                ),
+          // Create default points if none are available
+          final points =
+              state.loyaltyPoints ??
+              LoyaltyPoints(
+                currentPoints: 0,
+                lifetimePoints: 0,
+                redeemedPoints: 0,
+                pendingPoints: 0,
               );
-            }
 
-            return _DashboardContent(
-              loyaltyPoints: loyaltyPoints,
-              transactions: state.transactions ?? [],
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-class _DashboardContent extends StatelessWidget {
-  final LoyaltyPoints loyaltyPoints;
-  final List<PointsTransaction> transactions;
-
-  const _DashboardContent({
-    required this.loyaltyPoints,
-    required this.transactions,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          LoyaltyCard(
-            currentPoints: loyaltyPoints.currentPoints,
-            pointsValue: loyaltyPoints.currentValuePHP,
-            onPointsDetailsTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const LoyaltyPointsScreen(),
-                ),
+          return RefreshIndicator(
+            onRefresh: () async {
+              context.read<bloc.LoyaltyBloc>().add(
+                bloc.LoadPointsTransactions(),
               );
+              await Future.delayed(const Duration(milliseconds: 500));
             },
-          ),
-          const SizedBox(height: 24),
-          Text('Redeem Points', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 16),
-          _buildRedemptionOptions(context, loyaltyPoints),
-          const SizedBox(height: 24),
-          Text(
-            'Recent Transactions',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 16),
-          _buildRecentTransactions(context, transactions),
-          const SizedBox(height: 16),
-          Center(
-            child: TextButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const LoyaltyPointsScreen(),
-                  ),
-                );
-              },
-              child: const Text('View All Transactions'),
-            ),
-          ),
-          const SizedBox(height: 16),
-          SimpleGlassCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'WooCommerce Integration',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.sync),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const WooCommerceSyncScreen(),
-                          ),
-                        );
-                      },
-                      tooltip: 'Sync with WooCommerce',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Earn points automatically from your shop purchases',
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const WooCommerceSyncScreen(),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.shopping_cart),
-                  label: const Text('Manage WooCommerce Integration'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRedemptionOptions(
-    BuildContext context,
-    LoyaltyPoints loyaltyPoints,
-  ) {
-    final optionsList = [
-      _RedemptionOption(
-        title: 'Free Delivery',
-        points: 100,
-        value: 10.0,
-        icon: Icons.local_shipping,
-      ),
-      _RedemptionOption(
-        title: '₱50 Discount',
-        points: 500,
-        value: 50.0,
-        icon: Icons.money_off,
-      ),
-      _RedemptionOption(
-        title: '₱100 Discount',
-        points: 1000,
-        value: 100.0,
-        icon: Icons.money_off,
-      ),
-      _RedemptionOption(
-        title: 'Special Item',
-        points: 2500,
-        value: 250.0,
-        icon: Icons.card_giftcard,
-      ),
-    ];
-
-    return SizedBox(
-      height: 140,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        itemCount: optionsList.length,
-        itemBuilder: (context, index) {
-          final option = optionsList[index];
-          final canRedeem = loyaltyPoints.currentPoints >= option.points;
-
-          return GestureDetector(
-            onTap:
-                canRedeem
-                    ? () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder:
-                              (context) => PointsRedemptionScreen(
-                                availablePoints: loyaltyPoints.currentPoints,
-                              ),
-                        ),
-                      );
-                    }
-                    : null,
-            child: Container(
-              width: 150,
-              margin: EdgeInsets.only(
-                right: index < optionsList.length - 1 ? 12 : 0,
-              ),
-              child: Card(
-                elevation: 3,
-                color: canRedeem ? null : Colors.grey.shade200,
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        option.icon,
-                        color:
-                            canRedeem
-                                ? Theme.of(context).primaryColor
-                                : Colors.grey,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        option.title,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: canRedeem ? null : Colors.grey,
-                        ),
-                      ),
-                      const Spacer(),
-                      Text(
-                        '${option.points} points',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color:
-                              canRedeem
-                                  ? Theme.of(context).primaryColor
-                                  : Colors.grey,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        'Value: ₱${option.value.toStringAsFixed(2)}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: canRedeem ? null : Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildWelcomeHeader(context),
+                  const SizedBox(height: 24),
+                  _buildPointsSummaryCard(context, points),
+                  const SizedBox(height: 24),
+                  _buildQuickRedeemCard(context, points),
+                  const SizedBox(height: 24),
+                  _buildRecentActivityCard(context, state),
+                ],
               ),
             ),
           );
@@ -394,26 +139,347 @@ class _DashboardContent extends StatelessWidget {
     );
   }
 
-  Widget _buildRecentTransactions(
-    BuildContext context,
-    List<PointsTransaction> transactions,
-  ) {
-    final recentTransactions = transactions.take(3).toList();
+  Widget _buildWelcomeHeader(BuildContext context) {
+    // Get username from auth bloc if available
+    final authState = context.watch<auth_bloc.AuthBloc>().state;
+    String username = 'Customer';
 
-    if (recentTransactions.isEmpty) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Center(child: Text('No transactions yet')),
-        ),
-      );
+    if (authState is auth_bloc.AuthAuthenticated) {
+      username =
+          authState.user.displayName ?? authState.user.username ?? 'Customer';
     }
 
     return Column(
-      children:
-          recentTransactions.map((transaction) {
-            return LoyaltyTransactionItem(transaction: transaction);
-          }).toList(),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Welcome, $username',
+          style: const TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'Track your rewards and redeem exclusive offers',
+          style: TextStyle(color: Colors.white70),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPointsSummaryCard(BuildContext context, LoyaltyPoints points) {
+    return SimpleGlassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Available Points',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.stars, color: Colors.amber, size: 36),
+                ),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${points.currentPoints}',
+                      style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    Text(
+                      'Value: ₱${points.currentValuePHP.toStringAsFixed(2)}',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                  ],
+                ),
+                const Spacer(),
+                IconButton(
+                  icon: const Icon(
+                    Icons.arrow_forward_ios,
+                    color: Colors.white70,
+                    size: 18,
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const LoyaltyPointsScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Divider(color: Colors.white24),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildPointsInfoItem(
+                  'Lifetime',
+                  '${points.lifetimePoints}',
+                  Icons.history,
+                ),
+                _buildPointsInfoItem(
+                  'Redeemed',
+                  '${points.redeemedPoints}',
+                  Icons.redeem,
+                ),
+                if (points.pendingPoints > 0)
+                  _buildPointsInfoItem(
+                    'Pending',
+                    '${points.pendingPoints}',
+                    Icons.pending,
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPointsInfoItem(String label, String value, IconData icon) {
+    return Column(
+      children: [
+        Icon(icon, color: Colors.white70, size: 18),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white70, fontSize: 12),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickRedeemCard(BuildContext context, LoyaltyPoints points) {
+    final options = [
+      _RedemptionOption(
+        title: 'Store Discount',
+        points: 200,
+        icon: Icons.money_off,
+      ),
+      _RedemptionOption(
+        title: 'Free Shipping',
+        points: 500,
+        icon: Icons.local_shipping,
+      ),
+      _RedemptionOption(
+        title: 'Product Voucher',
+        points: 1000,
+        icon: Icons.card_giftcard,
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Quick Redeem',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (context) => PointsRedemptionScreen(
+                          availablePoints: points.currentPoints,
+                        ),
+                  ),
+                );
+              },
+              child: const Text('See All'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 130,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: options.length,
+            itemBuilder: (context, index) {
+              final option = options[index];
+              final isDisabled = points.currentPoints < option.points;
+
+              return Container(
+                width: 140,
+                margin: EdgeInsets.only(right: 12),
+                child: SimpleGlassCard(
+                  child: InkWell(
+                    onTap:
+                        isDisabled
+                            ? null
+                            : () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) => PointsRedemptionScreen(
+                                        availablePoints: points.currentPoints,
+                                      ),
+                                ),
+                              );
+                            },
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            option.icon,
+                            color: isDisabled ? Colors.white30 : Colors.amber,
+                            size: 32,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            option.title,
+                            style: TextStyle(
+                              color: isDisabled ? Colors.white30 : Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${option.points} pts',
+                            style: TextStyle(
+                              color:
+                                  isDisabled ? Colors.white30 : Colors.white70,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecentActivityCard(
+    BuildContext context,
+    bloc.LoyaltyState state,
+  ) {
+    final transactions = state.transactions ?? [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Recent Activity',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                // Navigate to full history
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const LoyaltyPointsScreen(),
+                  ),
+                );
+              },
+              child: const Text('See All'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+
+        // Recent activity list - show transactions or empty state
+        SimpleGlassCard(
+          child:
+              transactions.isEmpty
+                  ? const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(Icons.history, color: Colors.white54, size: 32),
+                          SizedBox(height: 8),
+                          Text(
+                            'No transactions yet',
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Future activity will appear here',
+                            style: TextStyle(
+                              color: Colors.white54,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  : Column(
+                    children: [
+                      for (
+                        int i = 0;
+                        i < transactions.length.clamp(0, 3);
+                        i++
+                      ) ...[
+                        LoyaltyTransactionItem(transaction: transactions[i]),
+                        if (i < transactions.length.clamp(0, 3) - 1)
+                          const Divider(color: Colors.white24),
+                      ],
+                    ],
+                  ),
+        ),
+      ],
     );
   }
 }
@@ -422,13 +488,11 @@ class _DashboardContent extends StatelessWidget {
 class _RedemptionOption {
   final String title;
   final int points;
-  final double value;
   final IconData icon;
 
   const _RedemptionOption({
     required this.title,
     required this.points,
-    required this.value,
     required this.icon,
   });
 }
