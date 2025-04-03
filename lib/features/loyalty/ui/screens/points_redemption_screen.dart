@@ -213,7 +213,9 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen>
                           beginOffset: const Offset(0, 0.2),
                           child: _buildRedeemButton(
                             state.status == LoyaltyStatus.loading ||
-                                availablePoints < _pointsToRedeem,
+                                availablePoints < _pointsToRedeem ||
+                                availablePoints <= 0 ||
+                                _pointsToRedeem <= 0,
                           ),
                         ),
                       ],
@@ -417,6 +419,11 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen>
   }
 
   Widget _buildRedeemButton(bool isDisabled) {
+    // Customize the button text based on the reason it's disabled
+    final bool hasNoPoints = widget.availablePoints <= 0;
+    final String buttonText =
+        hasNoPoints ? 'No Points Available' : 'Redeem Points';
+
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
@@ -430,7 +437,7 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen>
           disabledBackgroundColor: Colors.grey.withOpacity(0.3),
         ),
         child: Text(
-          'Redeem Points',
+          buttonText,
           style: TextStyle(
             fontSize: 16.0,
             fontWeight: FontWeight.bold,
