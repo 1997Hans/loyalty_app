@@ -5,8 +5,7 @@ import 'package:loyalty_app/features/loyalty/domain/models/loyalty_points.dart';
 class PointsSummaryCard extends StatelessWidget {
   final LoyaltyPoints loyaltyPoints;
 
-  const PointsSummaryCard({Key? key, required this.loyaltyPoints})
-    : super(key: key);
+  const PointsSummaryCard({super.key, required this.loyaltyPoints});
 
   @override
   Widget build(BuildContext context) {

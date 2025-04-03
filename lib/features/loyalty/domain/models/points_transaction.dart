@@ -1,5 +1,4 @@
 import 'package:equatable/equatable.dart';
-import 'package:loyalty_app/core/constants/app_config.dart';
 
 /// Type of points transaction
 enum TransactionType {

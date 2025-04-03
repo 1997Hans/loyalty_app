@@ -28,7 +28,7 @@ class LoyaltyPoints extends Equatable {
     required this.pendingPoints,
     DateTime? lastUpdated,
     this.userId = 'user_123',
-  }) : this.lastUpdated = lastUpdated ?? DateTime(2023, 1, 1);
+  }) : lastUpdated = lastUpdated ?? DateTime(2023, 1, 1);
 
   /// Factory constructor for creating initial empty points
   factory LoyaltyPoints.initial() {

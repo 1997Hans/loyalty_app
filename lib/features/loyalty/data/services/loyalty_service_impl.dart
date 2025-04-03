@@ -134,6 +134,7 @@ class LoyaltyServiceImpl implements LoyaltyService {
   }
 
   /// Dispose resources
+  @override
   void dispose() {
     _pointsStreamController.close();
   }

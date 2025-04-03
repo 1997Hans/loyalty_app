@@ -281,7 +281,7 @@ class LoyaltyPointsScreen extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 8),
               child: loyalty.LoyaltyTransactionItem(transaction: transaction),
             );
-          }).toList(),
+          }),
       ],
     );
   }

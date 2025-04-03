@@ -7,11 +7,11 @@ class LoyaltyCard extends StatelessWidget {
   final VoidCallback onPointsDetailsTap;
 
   const LoyaltyCard({
-    Key? key,
+    super.key,
     required this.currentPoints,
     required this.pointsValue,
     required this.onPointsDetailsTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

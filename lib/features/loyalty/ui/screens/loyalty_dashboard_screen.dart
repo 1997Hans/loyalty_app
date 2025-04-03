@@ -18,6 +18,7 @@ import 'package:loyalty_app/features/loyalty/domain/models/points_transaction.da
 import 'package:loyalty_app/features/loyalty/ui/screens/points_redemption_screen.dart';
 import 'package:loyalty_app/features/loyalty/ui/widgets/loyalty_card.dart';
 import 'package:loyalty_app/features/loyalty/ui/widgets/loyalty_transaction_item.dart';
+import 'package:loyalty_app/features/loyalty/ui/screens/woocommerce_sync_screen.dart';
 
 class LoyaltyDashboardScreen extends StatefulWidget {
   const LoyaltyDashboardScreen({super.key});
@@ -43,10 +44,10 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen> {
       body: BlocListener<bloc.LoyaltyBloc, bloc.LoyaltyState>(
         listener: (context, state) {
           // Safe null checks for all state properties
-          final status = state?.status;
-          final redemptionStatus = state?.redemptionStatus;
-          final lastTransaction = state?.lastRedeemedTransaction;
-          final errorMsg = state?.errorMessage;
+          final status = state.status;
+          final redemptionStatus = state.redemptionStatus;
+          final lastTransaction = state.lastRedeemedTransaction;
+          final errorMsg = state.errorMessage;
 
           // Error notifications
           if (status == bloc.LoyaltyStatus.error && errorMsg != null) {
@@ -84,10 +85,6 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen> {
         },
         child: BlocBuilder<bloc.LoyaltyBloc, bloc.LoyaltyState>(
           builder: (context, state) {
-            if (state == null) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
             final status = state.status;
             final points = state.loyaltyPoints;
 
@@ -166,6 +163,56 @@ class _DashboardContent extends StatelessWidget {
                 );
               },
               child: const Text('View All Transactions'),
+            ),
+          ),
+          const SizedBox(height: 16),
+          SimpleGlassCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'WooCommerce Integration',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.sync),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const WooCommerceSyncScreen(),
+                          ),
+                        );
+                      },
+                      tooltip: 'Sync with WooCommerce',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Earn points automatically from your shop purchases',
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const WooCommerceSyncScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.shopping_cart),
+                  label: const Text('Manage WooCommerce Integration'),
+                ),
+              ],
             ),
           ),
         ],

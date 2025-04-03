@@ -6,8 +6,7 @@ import 'package:loyalty_app/features/loyalty/domain/models/points_transaction.da
 class LoyaltyTransactionItem extends StatelessWidget {
   final PointsTransaction transaction;
 
-  const LoyaltyTransactionItem({Key? key, required this.transaction})
-    : super(key: key);
+  const LoyaltyTransactionItem({super.key, required this.transaction});
 
   @override
   Widget build(BuildContext context) {

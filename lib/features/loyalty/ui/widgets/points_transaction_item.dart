@@ -7,8 +7,7 @@ import 'package:intl/intl.dart';
 class LoyaltyTransactionItem extends StatelessWidget {
   final PointsTransaction transaction;
 
-  const LoyaltyTransactionItem({Key? key, required this.transaction})
-    : super(key: key);
+  const LoyaltyTransactionItem({super.key, required this.transaction});
 
   @override
   Widget build(BuildContext context) {

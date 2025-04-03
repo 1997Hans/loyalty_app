@@ -9,7 +9,7 @@ import 'package:loyalty_app/features/loyalty/ui/screens/loyalty_points_screen.da
 import 'package:loyalty_app/features/loyalty/ui/screens/points_redemption_screen.dart';
 
 class MainNavigation extends StatefulWidget {
-  const MainNavigation({Key? key}) : super(key: key);
+  const MainNavigation({super.key});
 
   @override
   State<MainNavigation> createState() => _MainNavigationState();
