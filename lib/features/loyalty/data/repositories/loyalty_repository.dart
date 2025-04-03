@@ -10,7 +10,7 @@ import 'package:loyalty_app/features/loyalty/data/services/loyalty_service_impl.
 /// Repository for loyalty data storage and retrieval
 class LoyaltyRepository {
   // In-memory storage for simulating database
-  LoyaltyPoints _loyaltyPoints = LoyaltyPoints.mock();
+  LoyaltyPoints _loyaltyPoints = LoyaltyPoints.initial();
   final List<PointsTransaction> _transactions =
       PointsTransaction.getMockTransactions();
 

@@ -101,40 +101,8 @@ class PointsTransaction extends Equatable {
 
   /// Create mock transactions for testing and demo
   static List<PointsTransaction> getMockTransactions() {
-    return [
-      PointsTransaction(
-        id: 'tx-001',
-        type: TransactionType.purchase,
-        points: 125,
-        description: 'Purchase #12345',
-        createdAt: DateTime.now().subtract(const Duration(days: 2)),
-        metadata: {'order_id': '12345', 'amount': '2500'},
-      ),
-      PointsTransaction(
-        id: 'tx-002',
-        type: TransactionType.redemption,
-        points: -50,
-        description: 'Redeemed for Free Delivery',
-        createdAt: DateTime.now().subtract(const Duration(days: 1)),
-        metadata: {'reward_title': 'Free Delivery', 'value': '50'},
-      ),
-      PointsTransaction(
-        id: 'tx-003',
-        type: TransactionType.purchase,
-        points: 75,
-        description: 'Purchase #12340',
-        createdAt: DateTime.now().subtract(const Duration(days: 5)),
-        metadata: {'order_id': '12340', 'amount': '1500'},
-      ),
-      PointsTransaction(
-        id: 'tx-004',
-        type: TransactionType.bonus,
-        points: 100,
-        description: 'Welcome bonus',
-        createdAt: DateTime.now().subtract(const Duration(days: 30)),
-        metadata: {'reason': 'new_customer'},
-      ),
-    ];
+    // Return an empty list instead of mock data
+    return [];
   }
 
   @override

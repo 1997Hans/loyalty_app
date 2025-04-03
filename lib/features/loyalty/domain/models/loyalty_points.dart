@@ -40,16 +40,6 @@ class LoyaltyPoints extends Equatable {
     );
   }
 
-  /// Create a mock points object for testing
-  factory LoyaltyPoints.mock() {
-    return LoyaltyPoints(
-      currentPoints: 250,
-      lifetimePoints: 300,
-      redeemedPoints: 50,
-      pendingPoints: 0,
-    );
-  }
-
   /// Calculate the value of the current points in PHP
   double get currentValuePHP => calculateValuePHP(currentPoints);
 

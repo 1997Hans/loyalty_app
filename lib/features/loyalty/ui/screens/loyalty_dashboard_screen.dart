@@ -97,18 +97,73 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
             return const Center(child: CircularProgressIndicator());
           }
 
-          // Even if state is loading, show the previous UI with any available data
-          // This prevents showing loading indicators during refreshes
+          // Check if no loyalty points are available - this means the user has no points yet
+          if (state.loyaltyPoints == null) {
+            // Show a proper "no points yet" UI instead of dummy data
+            return RefreshIndicator(
+              onRefresh: () async {
+                context.read<bloc.LoyaltyBloc>().add(
+                  bloc.LoadPointsTransactions(),
+                );
+                await Future.delayed(const Duration(milliseconds: 500));
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildWelcomeHeader(context),
+                    const SizedBox(height: 24),
+                    SimpleGlassCard(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          children: [
+                            const Icon(
+                              Icons.loyalty_outlined,
+                              size: 48,
+                              color: Colors.amber,
+                            ),
+                            const SizedBox(height: 16),
+                            const Text(
+                              'No Points Yet',
+                              style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Make purchases through our store to earn loyalty points',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.white70),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                context.read<bloc.LoyaltyBloc>().add(
+                                  bloc.LoadPointsTransactions(),
+                                );
+                              },
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Refresh'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    _buildRecentActivityCard(context, state),
+                  ],
+                ),
+              ),
+            );
+          }
 
-          // Create default points if none are available
-          final points =
-              state.loyaltyPoints ??
-              LoyaltyPoints(
-                currentPoints: 0,
-                lifetimePoints: 0,
-                redeemedPoints: 0,
-                pendingPoints: 0,
-              );
+          // If we have real points data, use it (no dummy data)
+          final points = state.loyaltyPoints!;
 
           return RefreshIndicator(
             onRefresh: () async {

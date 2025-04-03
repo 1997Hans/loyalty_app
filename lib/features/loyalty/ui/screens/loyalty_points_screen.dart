@@ -74,22 +74,71 @@ class _LoyaltyPointsScreenState extends State<LoyaltyPointsScreen> {
               );
             }
 
-            // Create default points object if none is available
-            final points =
-                state.loyaltyPoints ??
-                LoyaltyPoints(
-                  currentPoints: 0,
-                  lifetimePoints: 0,
-                  redeemedPoints: 0,
-                  pendingPoints: 0,
-                );
+            // Show a proper UI for no points yet, instead of creating dummy points
+            if (state.loyaltyPoints == null) {
+              return RefreshIndicator(
+                onRefresh: () async {
+                  context.read<LoyaltyBloc>().add(LoadPointsTransactions());
+                  await Future.delayed(const Duration(milliseconds: 500));
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SimpleGlassCard(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                            children: [
+                              const Icon(
+                                Icons.loyalty_outlined,
+                                size: 48,
+                                color: Colors.amber,
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'No Points History',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              const Text(
+                                'Your loyalty points and transaction history will appear here after you make purchases',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                              const SizedBox(height: 24),
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  context.read<LoyaltyBloc>().add(
+                                    LoadPointsTransactions(),
+                                  );
+                                },
+                                icon: const Icon(Icons.refresh),
+                                label: const Text('Refresh'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
 
+            // We have real points data, use it directly
             return RefreshIndicator(
               onRefresh: () async {
                 context.read<LoyaltyBloc>().add(LoadPointsTransactions());
                 await Future.delayed(const Duration(milliseconds: 500));
               },
-              child: _buildContent(context, state, points),
+              child: _buildContent(context, state, state.loyaltyPoints!),
             );
           },
         ),
