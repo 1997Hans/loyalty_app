@@ -5,15 +5,12 @@ import 'package:loyalty_app/core/common/widgets/simple_glass_card.dart';
 import 'package:loyalty_app/core/constants/app_config.dart';
 import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/core/utils/gradient_background.dart';
-import 'package:loyalty_app/features/loyalty/domain/blocs/loyalty_bloc.dart';
+import 'package:loyalty_app/features/loyalty/bloc/loyalty_bloc.dart';
 
 class PointsRedemptionScreen extends StatefulWidget {
   final int availablePoints;
 
-  const PointsRedemptionScreen({
-    super.key,
-    required this.availablePoints,
-  });
+  const PointsRedemptionScreen({super.key, required this.availablePoints});
 
   @override
   State<PointsRedemptionScreen> createState() => _PointsRedemptionScreenState();
@@ -53,72 +50,140 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen> {
 
   void _redeemPoints() {
     if (_formKey.currentState?.validate() ?? false) {
-      final description = 'Redeemed for $_selectedRedemptionType';
-      
-      // Dispatch redemption event
-      BlocProvider.of<LoyaltyBloc>(context).add(
-        RedeemLoyaltyPoints(
+      // Calculate value of points based on AppConfig rate
+      final value = _pointsToRedeem * AppConfig.pesosPerPoint;
+
+      // Dispatch redemption event to the correct bloc
+      context.read<LoyaltyBloc>().add(
+        RedeemPoints(
           points: _pointsToRedeem,
-          description: description,
+          rewardTitle: _selectedRedemptionType,
+          value: value,
         ),
       );
     }
   }
 
+  void _showSuccessDialog(BuildContext context, int points, double value) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            backgroundColor: AppTheme.cardDarkColor,
+            title: const Text(
+              'Redemption Successful',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 60),
+                SizedBox(height: 16),
+                Text(
+                  'You have successfully redeemed $points points!',
+                  style: TextStyle(color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 8),
+                Text(
+                  'Value: ${AppConfig.currencySymbol}${value.toStringAsFixed(2)}',
+                  style: TextStyle(color: Colors.white70),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Close dialog
+
+                  // Clear form
+                  _pointsController.clear();
+                  setState(() {
+                    _pointsToRedeem = 0;
+                  });
+
+                  // Reload the screen with updated points
+                  context.read<LoyaltyBloc>().add(LoadPointsTransactions());
+                },
+                child: const Text('OK', style: TextStyle(color: Colors.amber)),
+              ),
+            ],
+          ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return BlocConsumer<LoyaltyBloc, LoyaltyState>(
+    return BlocListener<LoyaltyBloc, LoyaltyState>(
+      listenWhen:
+          (previous, current) =>
+              previous.redemptionStatus != current.redemptionStatus ||
+              (current.status == LoyaltyStatus.error &&
+                  current.errorMessage != null),
       listener: (context, state) {
-        if (state is PointsRedemptionSuccess) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Successfully redeemed ${state.pointsRedeemed} points for ${AppConfig.currencySymbol}${state.value.toStringAsFixed(2)}',
-              ),
-              backgroundColor: Colors.green,
-            ),
+        if (state.redemptionStatus == RedemptionStatus.success) {
+          // Show success dialog instead of navigating away
+          _showSuccessDialog(
+            context,
+            _pointsToRedeem,
+            _pointsToRedeem * AppConfig.pesosPerPoint,
           );
-          Navigator.pop(context);
-        } else if (state is LoyaltyError) {
+
+          // Clear redemption status so it doesn't trigger again
+          context.read<LoyaltyBloc>().add(const ClearRedemptionStatus());
+        } else if (state.status == LoyaltyStatus.error &&
+            state.errorMessage != null) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Error: ${state.message}'),
+              content: Text('Error: ${state.errorMessage}'),
               backgroundColor: Colors.red,
             ),
           );
         }
       },
-      builder: (context, state) {
-        return Scaffold(
-          appBar: AppBar(
-            title: const Text('Redeem Points'),
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-          ),
-          body: GradientBackground(
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildAvailablePointsCard(),
-                      const SizedBox(height: 24.0),
-                      _buildRedemptionForm(context),
-                      const SizedBox(height: 24.0),
-                      _buildRedemptionSummary(),
-                      const SizedBox(height: 32.0),
-                      _buildRedeemButton(state is LoyaltyLoading),
-                    ],
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Redeem Points'),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+        ),
+        body: GradientBackground(
+          child: BlocBuilder<LoyaltyBloc, LoyaltyState>(
+            buildWhen:
+                (previous, current) =>
+                    previous.status != current.status ||
+                    previous.loyaltyPoints != current.loyaltyPoints,
+            builder: (context, state) {
+              return SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildAvailablePointsCard(),
+                        const SizedBox(height: 24.0),
+                        _buildRedemptionForm(context),
+                        const SizedBox(height: 24.0),
+                        _buildRedemptionSummary(),
+                        const SizedBox(height: 32.0),
+                        _buildRedeemButton(
+                          state.status == LoyaltyStatus.loading,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -138,11 +203,7 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen> {
           const SizedBox(height: 16.0),
           Row(
             children: [
-              const Icon(
-                Icons.stars,
-                color: Colors.amber,
-                size: 40,
-              ),
+              const Icon(Icons.stars, color: Colors.amber, size: 40),
               const SizedBox(width: 16.0),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,10 +218,7 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen> {
                   ),
                   Text(
                     'Value: ${AppConfig.currencySymbol}${(widget.availablePoints * AppConfig.pesosPerPoint).toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 16,
-                    ),
+                    style: const TextStyle(color: Colors.white70, fontSize: 16),
                   ),
                 ],
               ),
@@ -200,12 +258,13 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen> {
             ),
             dropdownColor: AppTheme.cardDarkColor,
             style: const TextStyle(color: Colors.white),
-            items: _redemptionTypes.map((String type) {
-              return DropdownMenuItem<String>(
-                value: type,
-                child: Text(type),
-              );
-            }).toList(),
+            items:
+                _redemptionTypes.map((String type) {
+                  return DropdownMenuItem<String>(
+                    value: type,
+                    child: Text(type),
+                  );
+                }).toList(),
             onChanged: (String? newValue) {
               if (newValue != null) {
                 setState(() {
@@ -255,10 +314,7 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen> {
           const SizedBox(height: 8.0),
           Text(
             'Exchange rate: 1 pt = ${AppConfig.currencySymbol}${AppConfig.pesosPerPoint.toStringAsFixed(2)}',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
-            ),
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
           ),
         ],
       ),
@@ -267,7 +323,7 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen> {
 
   Widget _buildRedemptionSummary() {
     final value = _pointsToRedeem * AppConfig.pesosPerPoint;
-    
+
     return SimpleGlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -304,10 +360,7 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen> {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-            ),
+            style: const TextStyle(color: Colors.white70, fontSize: 14),
           ),
           Text(
             value,
@@ -327,30 +380,31 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen> {
       width: double.infinity,
       height: 50,
       child: ElevatedButton(
-        onPressed: isLoading || _pointsToRedeem <= 0 || _pointsToRedeem > widget.availablePoints
-            ? null
-            : _redeemPoints,
+        onPressed:
+            isLoading ||
+                    _pointsToRedeem <= 0 ||
+                    _pointsToRedeem > widget.availablePoints
+                ? null
+                : _redeemPoints,
         style: ElevatedButton.styleFrom(
           backgroundColor: AppTheme.primaryColor,
           disabledBackgroundColor: Colors.grey,
         ),
-        child: isLoading
-            ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  strokeWidth: 2.0,
+        child:
+            isLoading
+                ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    strokeWidth: 2.0,
+                  ),
+                )
+                : const Text(
+                  'Redeem Now',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-              )
-            : const Text(
-                'Redeem Now',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
       ),
     );
   }
-} 
+}
