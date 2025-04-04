@@ -10,6 +10,7 @@ import 'package:loyalty_app/features/auth/bloc/auth_bloc.dart';
 import 'package:loyalty_app/features/loyalty/api/woocommerce_client.dart';
 import 'package:loyalty_app/features/loyalty/api/woocommerce_sync_service.dart';
 import 'package:loyalty_app/features/loyalty/bloc/loyalty_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Profile screen with user information and WooCommerce connection controls
 class WooCommerceSyncScreen extends StatefulWidget {
@@ -91,7 +92,7 @@ class _WooCommerceSyncScreenState extends State<WooCommerceSyncScreen> {
     // Update customer ID if needed
     final customerId = int.tryParse(_customerIdController.text);
     if (customerId != null && customerId > 0) {
-      _wooCommerceSyncService.customerId = customerId;
+      _wooCommerceSyncService.customerId = customerId.toString();
     }
 
     _wooCommerceSyncService.syncWooCommerceOrders();
