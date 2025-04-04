@@ -125,7 +125,8 @@ class WooCommerceSyncService {
       _addSyncStatus('Starting sync for customer ID: $_customerId');
 
       // Get orders from WooCommerce
-      final orders = await _wooCommerceClient.getCustomerOrders(_customerId!);
+      final int customerIdInt = int.parse(_customerId!);
+      final orders = await _wooCommerceClient.getCustomerOrders(customerIdInt);
       _addSyncStatus('Found ${orders.length} orders');
 
       // Process each order
@@ -315,6 +316,23 @@ class WooCommerceSyncService {
   /// Alias for syncWooCommerceOrders to match method name being called in the code
   Future<void> syncPoints() async {
     return syncWooCommerceOrders();
+  }
+
+  /// Cancel all pending operations and clear state when user logs out
+  void cancelPendingOperations() {
+    if (_isSyncing) {
+      _addSyncStatus('Cancelling current sync operation');
+      _isSyncing = false;
+    }
+
+    // Cancel any timers
+    _syncTimer?.cancel();
+    _syncTimer = null;
+
+    // Clear processed orders set
+    _processedOrders.clear();
+
+    _addSyncStatus('All pending operations cancelled');
   }
 
   /// Dispose resources

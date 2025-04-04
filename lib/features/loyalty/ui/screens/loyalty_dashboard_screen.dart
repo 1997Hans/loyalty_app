@@ -9,6 +9,7 @@ import 'package:loyalty_app/features/loyalty/ui/screens/points_redemption_screen
 import 'package:loyalty_app/features/loyalty/ui/widgets/loyalty_transaction_item.dart';
 import 'package:loyalty_app/features/auth/bloc/auth_bloc.dart' as auth_bloc;
 import 'package:loyalty_app/core/animations/animations.dart';
+import 'package:loyalty_app/features/loyalty/ui/screens/redemption_history_screen.dart';
 
 class LoyaltyDashboardScreen extends StatefulWidget {
   const LoyaltyDashboardScreen({super.key});
@@ -22,20 +23,114 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
   @override
   bool get wantKeepAlive => true;
 
+  // Track the current user ID to detect changes
+  String? _currentUserId;
+
+  // Animation controllers
+  late AnimationController _welcomeAnimationController;
+  late AnimationController _cardsAnimationController;
+  bool _animationsInitialized = false;
+
   @override
   void initState() {
     super.initState();
-    // Trigger data loading when screen is shown
+
+    // Initialize animation controllers
+    _welcomeAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+
+    _cardsAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    );
+
+    // Get the current user ID
+    final authState = context.read<auth_bloc.AuthBloc>().state;
+    if (authState is auth_bloc.AuthAuthenticated) {
+      _currentUserId = authState.user.id.toString();
+    }
+
+    // Initialize by loading points and transactions
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadPointsAndTransactions();
+    });
+  }
+
+  @override
+  void dispose() {
+    _welcomeAnimationController.dispose();
+    _cardsAnimationController.dispose();
+    super.dispose();
+  }
+
+  // Force data reload when auth state changes
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // Check if user has changed
+    final authState = context.watch<auth_bloc.AuthBloc>().state;
+    String? newUserId;
+
+    if (authState is auth_bloc.AuthAuthenticated) {
+      newUserId = authState.user.id.toString();
+    }
+
+    // If user ID changed, force refresh data
+    if (_currentUserId != newUserId) {
+      _currentUserId = newUserId;
+      // Force data reload for new user
+      _loadPointsAndTransactions();
+    }
+  }
+
+  /// Loads points and transactions data
+  void _loadPointsAndTransactions() {
+    // Trigger animations only once per screen visit
+    if (!_animationsInitialized) {
+      _welcomeAnimationController.forward();
+
+      // Delay the cards animation for a better staggered effect
+      Future.delayed(const Duration(milliseconds: 300), () {
+        _cardsAnimationController.forward();
+      });
+
+      _animationsInitialized = true;
+    }
+
+    // Only load data if we have a user
+    final authState = context.read<auth_bloc.AuthBloc>().state;
+    if (authState is auth_bloc.AuthAuthenticated) {
       final loyaltyBloc = context.read<bloc.LoyaltyBloc>();
       loyaltyBloc.add(bloc.SetContext(context));
-      loyaltyBloc.add(bloc.LoadPointsTransactions());
-    });
+      loyaltyBloc.add(const bloc.LoadPointsTransactions());
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
+
+    // Check current authentication state
+    final authState = context.watch<auth_bloc.AuthBloc>().state;
+    String? newUserId;
+
+    if (authState is auth_bloc.AuthAuthenticated) {
+      newUserId = authState.user.id.toString();
+
+      // If user ID changed since last check, force reload
+      if (_currentUserId != newUserId) {
+        _currentUserId = newUserId;
+        // Schedule reload in next frame to avoid build issues
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          final loyaltyBloc = context.read<bloc.LoyaltyBloc>();
+          loyaltyBloc.add(const bloc.LoadPointsTransactions());
+        });
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('Loyalty Dashboard')),
       body: BlocConsumer<bloc.LoyaltyBloc, bloc.LoyaltyState>(
@@ -126,21 +221,20 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    FadeSlideTransition.fromController(
-                      controller: AnimationController(
-                        vsync: this,
-                        duration: const Duration(milliseconds: 600),
-                      )..forward(),
-                      beginOffset: const Offset(0, 0.2),
-                      child: _buildWelcomeHeader(context),
-                    ),
+                    _buildWelcomeHeader(),
                     const SizedBox(height: 24),
                     AnimatedCard(
+                      animate:
+                          _cardsAnimationController.status !=
+                          AnimationStatus.completed,
                       duration: const Duration(milliseconds: 800),
                       child: _buildPointsSummaryCard(context, emptyPoints),
                     ),
                     const SizedBox(height: 24),
                     AnimatedCard(
+                      animate:
+                          _cardsAnimationController.status !=
+                          AnimationStatus.completed,
                       duration: const Duration(milliseconds: 800),
                       beginOpacity: 0.0,
                       beginScale: 0.95,
@@ -149,6 +243,9 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
                     ),
                     const SizedBox(height: 24),
                     AnimatedCard(
+                      animate:
+                          _cardsAnimationController.status !=
+                          AnimationStatus.completed,
                       duration: const Duration(milliseconds: 800),
                       beginOpacity: 0.0,
                       beginScale: 0.95,
@@ -177,21 +274,20 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  FadeSlideTransition.fromController(
-                    controller: AnimationController(
-                      vsync: this,
-                      duration: const Duration(milliseconds: 600),
-                    )..forward(),
-                    beginOffset: const Offset(0, 0.2),
-                    child: _buildWelcomeHeader(context),
-                  ),
+                  _buildWelcomeHeader(),
                   const SizedBox(height: 24),
                   AnimatedCard(
+                    animate:
+                        _cardsAnimationController.status !=
+                        AnimationStatus.completed,
                     duration: const Duration(milliseconds: 800),
                     child: _buildPointsSummaryCard(context, points),
                   ),
                   const SizedBox(height: 24),
                   AnimatedCard(
+                    animate:
+                        _cardsAnimationController.status !=
+                        AnimationStatus.completed,
                     duration: const Duration(milliseconds: 800),
                     beginOpacity: 0.0,
                     beginScale: 0.95,
@@ -200,6 +296,9 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
                   ),
                   const SizedBox(height: 24),
                   AnimatedCard(
+                    animate:
+                        _cardsAnimationController.status !=
+                        AnimationStatus.completed,
                     duration: const Duration(milliseconds: 800),
                     beginOpacity: 0.0,
                     beginScale: 0.95,
@@ -215,33 +314,60 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
     );
   }
 
-  Widget _buildWelcomeHeader(BuildContext context) {
-    // Get username from auth bloc if available
-    final authState = context.watch<auth_bloc.AuthBloc>().state;
-    String username = 'Customer';
+  /// Builds the welcome header section
+  Widget _buildWelcomeHeader() {
+    final authState = context.read<auth_bloc.AuthBloc>().state;
+    final String firstName;
 
     if (authState is auth_bloc.AuthAuthenticated) {
-      username =
-          authState.user.displayName ?? authState.user.username ?? 'Customer';
+      firstName =
+          authState.user.firstName ??
+          authState.user.displayName.split(' ').first;
+    } else {
+      firstName = 'Guest';
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Welcome, $username',
-          style: const TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: AnimatedBuilder(
+        animation: _welcomeAnimationController,
+        builder: (context, child) {
+          final animation = CurvedAnimation(
+            parent: _welcomeAnimationController,
+            curve: Curves.easeOutCubic,
+          );
+
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.25),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
+            ),
+          );
+        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Welcome back,',
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              firstName,
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
-        const Text(
-          'Track your rewards and redeem exclusive offers',
-          style: TextStyle(color: Colors.white70),
-        ),
-      ],
+      ),
     );
   }
 
@@ -513,6 +639,7 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
     bloc.LoyaltyState state,
   ) {
     final transactions = state.transactions ?? [];
+    final isLoading = state.status == bloc.LoyaltyStatus.loading;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -528,26 +655,56 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
                 color: Colors.white,
               ),
             ),
-            TextButton(
+            TextButton.icon(
               onPressed: () {
-                // Navigate to full history
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const LoyaltyPointsScreen(),
+                    builder: (context) => const RedemptionHistoryScreen(),
                   ),
                 );
               },
-              child: const Text('See All'),
+              icon: const Icon(Icons.history, size: 16),
+              label: const Text('Redemption History'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.amber,
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+              ),
             ),
           ],
         ),
         const SizedBox(height: 8),
 
-        // Recent activity list - show transactions or empty state
+        // Recent activity list - show transactions or loading/empty state
         SimpleGlassCard(
           child:
-              transactions.isEmpty
+              isLoading
+                  ? const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.amber,
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Loading transactions...',
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  : transactions.isEmpty
                   ? const Padding(
                     padding: EdgeInsets.all(16.0),
                     child: Center(

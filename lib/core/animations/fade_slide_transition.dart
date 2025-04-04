@@ -10,13 +10,13 @@ class FadeSlideTransition extends StatelessWidget {
 
   /// Creates a fade-slide transition with the given parameters
   const FadeSlideTransition({
-    Key? key,
+    super.key,
     required this.child,
     required this.animation,
     this.beginOffset = const Offset(0, 0.25),
     this.curve = Curves.easeOutCubic,
     this.duration = const Duration(milliseconds: 500),
-  }) : super(key: key);
+  });
 
   /// Creates a fade-slide transition from a controller
   factory FadeSlideTransition.fromController({

@@ -6,7 +6,6 @@ import 'package:loyalty_app/core/di/dependency_injection.dart';
 import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/features/auth/bloc/auth_bloc.dart';
 import 'package:loyalty_app/features/auth/ui/screens/landing_screen.dart';
-import 'package:loyalty_app/features/loyalty/api/woocommerce_sync_service.dart';
 import 'package:loyalty_app/features/loyalty/bloc/loyalty_bloc.dart';
 import 'package:loyalty_app/core/navigation/main_navigation.dart';
 

@@ -34,8 +34,9 @@ class AppConfig {
       "Tp6%N^C94odKQmzC"; // Regular admin password for authentication
 
   /// WooCommerce Loyalty Points Configuration
+  /// UPDATED: Ensure the WooCommerce points conversion matches the app conversion rate
   static const double woocommercePointsPerAmount =
-      1.0; // 1 point per unit of currency
+      0.05; // Same as pointsPerPHP for consistency
 
   // Disable automatic sync on app startup to prevent initial connection errors
   // User can enable this from the UI when ready

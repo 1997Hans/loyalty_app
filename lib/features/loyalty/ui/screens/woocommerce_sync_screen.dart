@@ -35,7 +35,7 @@ class _WooCommerceSyncScreenState extends State<WooCommerceSyncScreen> {
   // API information for diagnostics
   final String _apiUrl = AppConfig.woocommerceBaseUrl;
   final String _consumerKey =
-      AppConfig.woocommerceConsumerKey.substring(0, 10) + '...';
+      '${AppConfig.woocommerceConsumerKey.substring(0, 10)}...';
 
   @override
   void initState() {
@@ -91,7 +91,7 @@ class _WooCommerceSyncScreenState extends State<WooCommerceSyncScreen> {
     // Update customer ID if needed
     final customerId = int.tryParse(_customerIdController.text);
     if (customerId != null && customerId > 0) {
-      _wooCommerceSyncService.customerId = customerId;
+      _wooCommerceSyncService.customerId = customerId.toString();
     }
 
     _wooCommerceSyncService.syncWooCommerceOrders();

@@ -12,7 +12,7 @@ class AnimatedCounter extends StatefulWidget {
 
   /// Creates an animated counter that smoothly transitions between number values
   const AnimatedCounter({
-    Key? key,
+    super.key,
     required this.value,
     this.style,
     this.duration = const Duration(milliseconds: 800),
@@ -20,7 +20,7 @@ class AnimatedCounter extends StatefulWidget {
     this.prefix,
     this.suffix,
     this.decimalPlaces = 0,
-  }) : super(key: key);
+  });
 
   @override
   State<AnimatedCounter> createState() => _AnimatedCounterState();

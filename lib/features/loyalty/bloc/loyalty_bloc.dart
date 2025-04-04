@@ -50,6 +50,7 @@ class LoyaltyBloc extends Bloc<LoyaltyEvent, LoyaltyState> {
     LoyaltyPointsLoaded event,
     Emitter<LoyaltyState> emit,
   ) async {
+    // First, update the points immediately
     emit(
       state.copyWith(
         loyaltyPoints: event.loyaltyPoints,
@@ -57,12 +58,23 @@ class LoyaltyBloc extends Bloc<LoyaltyEvent, LoyaltyState> {
       ),
     );
 
-    // Check for milestone notifications
-    if (state.context != null) {
-      _notificationService.showPointsMilestoneNotification(
-        state.context!,
-        event.loyaltyPoints,
-      );
+    // Then fetch the latest transactions to ensure they stay in sync
+    try {
+      final transactions = await _loyaltyService.getTransactions();
+
+      // Only update transactions if they've changed to avoid unnecessary rebuilds
+      if (transactions.isNotEmpty &&
+          (state.transactions.isEmpty ||
+              transactions.first.id != state.transactions.first.id)) {
+        emit(state.copyWith(transactions: transactions));
+
+        print(
+          'Transactions synced with points update: ${transactions.length} transactions',
+        );
+      }
+    } catch (e) {
+      print('Error fetching transactions with points update: $e');
+      // Don't emit error state here to avoid disrupting the points update
     }
   }
 
@@ -247,13 +259,17 @@ class LoyaltyBloc extends Bloc<LoyaltyEvent, LoyaltyState> {
 
     // Cancel any active subscriptions
     _loyaltyPointsSubscription?.cancel();
+    _loyaltyPointsSubscription = null;
 
     // Re-establish subscription but it won't have data until next login
     _subscribeToPointsUpdates();
   }
 
   void _subscribeToPointsUpdates() {
+    // Cancel any existing subscription first
     _loyaltyPointsSubscription?.cancel();
+
+    // Create a new subscription
     _loyaltyPointsSubscription = _loyaltyService
         .getLoyaltyPointsStream()
         .listen((loyaltyPoints) {

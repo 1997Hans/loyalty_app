@@ -12,7 +12,7 @@ class AnimatedCard extends StatefulWidget {
 
   /// Creates an animated card with scale and opacity transitions
   const AnimatedCard({
-    Key? key,
+    super.key,
     required this.child,
     this.duration = const Duration(milliseconds: 500),
     this.curve = Curves.easeOutCubic,
@@ -20,7 +20,7 @@ class AnimatedCard extends StatefulWidget {
     this.animate = true,
     this.beginScale = 0.95,
     this.beginOpacity = 0.0,
-  }) : super(key: key);
+  });
 
   @override
   State<AnimatedCard> createState() => _AnimatedCardState();

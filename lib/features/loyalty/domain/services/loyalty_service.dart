@@ -32,6 +32,18 @@ abstract class LoyaltyService {
   /// Calculate the monetary value of points
   double calculatePointsValue(int points);
 
+  /// Add a pending transaction for points that are not yet confirmed
+  Future<void> addPendingTransaction(
+    PointsTransaction transaction,
+    LoyaltyPoints updatedPoints,
+  );
+
+  /// Confirm a pending transaction once order is completed
+  Future<void> confirmPendingTransaction(
+    String transactionId,
+    int pointsToConfirm,
+  );
+
   /// Reset all data (used during logout)
   void resetData();
 

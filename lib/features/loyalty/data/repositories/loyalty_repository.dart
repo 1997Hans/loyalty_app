@@ -3,9 +3,6 @@ import 'dart:async';
 import 'package:loyalty_app/core/config/app_config.dart';
 import 'package:loyalty_app/features/loyalty/domain/models/loyalty_points.dart';
 import 'package:loyalty_app/features/loyalty/domain/models/points_transaction.dart';
-import 'package:loyalty_app/features/loyalty/domain/services/loyalty_service.dart';
-import 'package:loyalty_app/features/loyalty/data/services/loyalty_service_impl.dart'
-    as impl;
 
 /// Repository for loyalty data storage and retrieval
 class LoyaltyRepository {

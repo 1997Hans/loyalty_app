@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:loyalty_app/core/common/widgets/dinarys_logo.dart';
 import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/core/utils/gradient_background.dart';
-import 'package:loyalty_app/features/auth/bloc/auth_bloc.dart';
 import 'package:loyalty_app/features/auth/ui/screens/login_screen.dart';
 import 'package:loyalty_app/features/auth/ui/screens/register_screen.dart';
-import 'package:loyalty_app/features/loyalty/ui/screens/loyalty_dashboard_screen.dart';
 
 class LandingScreen extends StatelessWidget {
   const LandingScreen({super.key});

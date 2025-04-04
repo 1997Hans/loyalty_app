@@ -13,7 +13,7 @@ class StaggeredList extends StatefulWidget {
 
   /// Creates a staggered list that animates children with a delayed effect
   const StaggeredList({
-    Key? key,
+    super.key,
     required this.children,
     this.itemDelay = const Duration(milliseconds: 50),
     this.itemDuration = const Duration(milliseconds: 400),
@@ -22,7 +22,7 @@ class StaggeredList extends StatefulWidget {
     this.padding,
     this.staggered = true,
     this.emptyWidget,
-  }) : super(key: key);
+  });
 
   @override
   State<StaggeredList> createState() => _StaggeredListState();

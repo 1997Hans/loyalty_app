@@ -6,7 +6,6 @@ import 'package:loyalty_app/features/loyalty/ui/screens/loyalty_dashboard_screen
 import 'package:loyalty_app/features/loyalty/ui/screens/loyalty_points_screen.dart';
 import 'package:loyalty_app/features/loyalty/ui/screens/points_redemption_screen.dart';
 import 'package:loyalty_app/features/loyalty/ui/screens/woocommerce_sync_screen.dart';
-import 'package:loyalty_app/core/animations/animations.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});

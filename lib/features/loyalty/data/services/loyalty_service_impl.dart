@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:loyalty_app/core/config/app_config.dart';
 import 'package:loyalty_app/features/loyalty/data/repositories/loyalty_repository.dart';
@@ -80,6 +81,9 @@ class LoyaltyServiceImpl implements LoyaltyService {
       return null; // Not enough points
     }
 
+    // Generate a coupon code for the redemption
+    final couponCode = _generateCouponCode(rewardTitle, points);
+
     final transaction = PointsTransaction(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       type: TransactionType.redemption,
@@ -87,7 +91,11 @@ class LoyaltyServiceImpl implements LoyaltyService {
       description: 'Redeemed for $rewardTitle',
       createdAt: DateTime.now(),
       status: TransactionStatus.completed,
-      metadata: {'reward_title': rewardTitle, 'value': value.toString()},
+      metadata: {
+        'reward_title': rewardTitle,
+        'value': value.toString(),
+        'coupon_code': couponCode,
+      },
     );
 
     await _repository.addTransaction(transaction);
@@ -100,6 +108,34 @@ class LoyaltyServiceImpl implements LoyaltyService {
     _pointsStreamController.add(updatedPoints);
 
     return transaction;
+  }
+
+  /// Generate a unique coupon code for redemption
+  String _generateCouponCode(String rewardTitle, int points) {
+    final random = Random();
+    final timestamp = DateTime.now().millisecondsSinceEpoch
+        .toString()
+        .substring(6);
+
+    // Create prefix based on reward type
+    String prefix;
+    if (rewardTitle.contains('Discount')) {
+      prefix = 'DISC';
+    } else if (rewardTitle.contains('Gift')) {
+      prefix = 'GIFT';
+    } else if (rewardTitle.contains('Voucher')) {
+      prefix = 'VCHR';
+    } else {
+      prefix = 'RWRD';
+    }
+
+    // Random alphanumeric characters
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789';
+    final randomChars =
+        List.generate(4, (_) => chars[random.nextInt(chars.length)]).join();
+
+    // Combine parts to create the coupon code
+    return '${prefix}${points ~/ 100}${randomChars}${timestamp.substring(timestamp.length - 3)}';
   }
 
   @override
@@ -133,6 +169,61 @@ class LoyaltyServiceImpl implements LoyaltyService {
     return points * AppConfig.pointValueInPHP;
   }
 
+  @override
+  Future<void> addPendingTransaction(
+    PointsTransaction transaction,
+    LoyaltyPoints updatedPoints,
+  ) async {
+    // Add the pending transaction
+    await _repository.addTransaction(transaction);
+
+    // Update points with pending points included
+    await _repository.updatePoints((_) => updatedPoints);
+
+    // Update the stream
+    _pointsStreamController.add(updatedPoints);
+  }
+
+  @override
+  Future<void> confirmPendingTransaction(
+    String transactionId,
+    int pointsToConfirm,
+  ) async {
+    // Get the transaction
+    final transactions = await _repository.getTransactions();
+    final pendingTransaction = transactions.firstWhere(
+      (t) => t.id == transactionId,
+      orElse: () => throw Exception('Transaction not found: $transactionId'),
+    );
+
+    // Create a new transaction with confirmed status
+    final confirmedTransaction = PointsTransaction(
+      id: 'confirmed_${pendingTransaction.id}',
+      type: TransactionType.purchase,
+      points: pendingTransaction.points,
+      description: 'Confirmed: ${pendingTransaction.description}',
+      createdAt: DateTime.now(),
+      status: TransactionStatus.completed,
+      metadata: {
+        ...pendingTransaction.metadata,
+        'confirmed_from': pendingTransaction.id,
+        'confirmed_at': DateTime.now().toIso8601String(),
+      },
+    );
+
+    // Add the confirmed transaction
+    await _repository.addTransaction(confirmedTransaction);
+
+    // Update the points (convert pending to confirmed)
+    await _repository.updatePoints((currentPoints) {
+      return currentPoints.confirmPendingPoints(pointsToConfirm);
+    });
+
+    // Update the stream
+    final updatedPoints = await getLoyaltyPoints();
+    _pointsStreamController.add(updatedPoints);
+  }
+
   /// Dispose resources
   @override
   void dispose() {
@@ -140,6 +231,7 @@ class LoyaltyServiceImpl implements LoyaltyService {
   }
 
   /// Reset all data when a user logs out
+  @override
   void resetData() async {
     try {
       // Clear cached data in the repository

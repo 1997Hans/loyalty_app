@@ -6,8 +6,8 @@ import 'package:loyalty_app/core/constants/app_config.dart';
 import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/core/utils/gradient_background.dart';
 import 'package:loyalty_app/features/loyalty/bloc/loyalty_bloc.dart';
-import 'package:loyalty_app/features/loyalty/ui/screens/woocommerce_sync_screen.dart';
 import 'package:loyalty_app/core/animations/animations.dart';
+import 'package:loyalty_app/features/loyalty/ui/screens/redemption_history_screen.dart';
 
 class PointsRedemptionScreen extends StatefulWidget {
   final int availablePoints;
@@ -73,8 +73,14 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen>
   }
 
   void _showSuccessDialog(BuildContext context, int points, double value) {
+    // The coupon code will be available in the last redeemed transaction in the state
+    final transaction =
+        context.read<LoyaltyBloc>().state.lastRedeemedTransaction;
+    final couponCode = transaction?.metadata['coupon_code'] ?? 'N/A';
+
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder:
           (context) => AlertDialog(
             backgroundColor: AppTheme.cardDarkColor,
@@ -101,6 +107,43 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen>
                   style: TextStyle(color: Colors.white70),
                   textAlign: TextAlign.center,
                 ),
+                SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.amber.withOpacity(0.5)),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Your Coupon Code',
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                      SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            couponCode,
+                            style: TextStyle(
+                              color: Colors.amber,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Icon(Icons.copy, color: Colors.amber, size: 18),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
             actions: [
@@ -118,6 +161,23 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen>
                   context.read<LoyaltyBloc>().add(LoadPointsTransactions());
                 },
                 child: const Text('OK', style: TextStyle(color: Colors.amber)),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Close dialog
+
+                  // Navigate to redemption history screen
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const RedemptionHistoryScreen(),
+                    ),
+                  );
+                },
+                child: const Text(
+                  'View History',
+                  style: TextStyle(color: Colors.white70),
+                ),
               ),
             ],
           ),
@@ -203,6 +263,14 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen>
                           duration: const Duration(milliseconds: 800),
                           curve: Curves.easeOutQuart,
                           child: _buildRedemptionSummary(),
+                        ),
+                        const SizedBox(height: 24.0),
+                        AnimatedCard(
+                          beginScale: 0.95,
+                          beginOpacity: 0.0,
+                          duration: const Duration(milliseconds: 850),
+                          curve: Curves.easeOutQuart,
+                          child: _buildViewHistoryButton(),
                         ),
                         const SizedBox(height: 32.0),
                         FadeSlideTransition.fromController(
@@ -443,6 +511,33 @@ class _PointsRedemptionScreenState extends State<PointsRedemptionScreen>
             fontWeight: FontWeight.bold,
             color: isDisabled ? Colors.white38 : Colors.black,
           ),
+        ),
+      ),
+    );
+  }
+
+  // New method to build the view history button
+  Widget _buildViewHistoryButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const RedemptionHistoryScreen(),
+            ),
+          );
+        },
+        icon: const Icon(Icons.history),
+        label: const Text('View Redemption History'),
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 16.0),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12.0),
+          ),
+          side: const BorderSide(color: Colors.white30),
+          foregroundColor: Colors.white,
         ),
       ),
     );
