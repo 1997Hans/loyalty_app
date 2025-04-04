@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:loyalty_app/core/config/app_config.dart';
+import 'package:loyalty_app/core/di/dependency_injection.dart';
+import 'package:loyalty_app/features/loyalty/api/woocommerce_sync_service.dart';
 import 'package:loyalty_app/features/loyalty/data/repositories/loyalty_repository.dart';
 import 'package:loyalty_app/features/loyalty/domain/models/loyalty_points.dart';
 import 'package:loyalty_app/features/loyalty/domain/models/points_transaction.dart';
@@ -140,6 +142,7 @@ class LoyaltyServiceImpl implements LoyaltyService {
   }
 
   /// Reset all data when a user logs out
+  @override
   void resetData() async {
     try {
       // Clear cached data in the repository
@@ -152,6 +155,153 @@ class LoyaltyServiceImpl implements LoyaltyService {
       print('Loyalty service data reset completed');
     } catch (e) {
       print('Error resetting loyalty data: $e');
+    }
+  }
+
+  @override
+  Future<PointsTransaction?> addPendingTransaction(
+    PointsTransaction transaction,
+    LoyaltyPoints updatedPoints,
+  ) async {
+    try {
+      // Create a transaction with pending status
+      final pendingTransaction = transaction.copyWith(
+        status: TransactionStatus.pending,
+      );
+
+      // Store the transaction
+      final savedTransaction = await _repository.saveTransaction(
+        pendingTransaction,
+      );
+
+      // Update the points in the stream
+      _pointsStreamController.add(updatedPoints);
+
+      return savedTransaction;
+    } catch (e) {
+      print('Error adding pending transaction: $e');
+      return null;
+    }
+  }
+
+  @override
+  Future<void> confirmPendingTransaction(
+    String transactionId,
+    String orderId,
+  ) async {
+    try {
+      print(
+        'Confirming pending transaction: $transactionId for order $orderId',
+      );
+
+      // Find the transaction by ID
+      final transactions = await _repository.getTransactions();
+      print(
+        'Found ${transactions.length} transactions, looking for the pending one...',
+      );
+
+      // Log all pending transactions
+      final pendingTransactions =
+          transactions
+              .where((t) => t.status == TransactionStatus.pending)
+              .toList();
+      print('Found ${pendingTransactions.length} pending transactions');
+      for (final t in pendingTransactions) {
+        print(
+          'Transaction: id=${t.id}, status=${t.status}, metadata=${t.metadata}',
+        );
+      }
+
+      final pendingTransaction = transactions.firstWhere(
+        (t) =>
+            t.id == transactionId ||
+            (t.status == TransactionStatus.pending &&
+                t.metadata.containsKey('order_id') &&
+                t.metadata['order_id'] == orderId),
+        orElse: () {
+          print(
+            'No matching transaction found for id=$transactionId or orderId=$orderId',
+          );
+          return PointsTransaction(
+            id: '',
+            type: TransactionType.purchase,
+            points: 0,
+            description: '',
+            createdAt: DateTime.now(),
+          );
+        },
+      );
+
+      if (pendingTransaction.id.isNotEmpty) {
+        print('Found transaction to confirm: ${pendingTransaction.id}');
+
+        // Get the points amount from the transaction
+        final pendingPoints = pendingTransaction.points;
+
+        // Update the transaction status to completed
+        final updatedTransaction = pendingTransaction.copyWith(
+          status: TransactionStatus.completed,
+          description: pendingTransaction.description.replaceFirst(
+            'Pending: ',
+            '',
+          ),
+        );
+
+        await _repository.updateTransaction(updatedTransaction);
+
+        // Get current loyalty points
+        final points = await _repository.getLoyaltyPoints();
+
+        // Confirm the pending points in the loyalty points
+        final updatedPoints = points.confirmPendingPoints(pendingPoints);
+
+        // Update the repository
+        await _repository.updatePoints((current) => updatedPoints);
+
+        // Update the stream
+        _pointsStreamController.add(updatedPoints);
+
+        print(
+          'Successfully confirmed transaction: current=${updatedPoints.currentPoints}, pending=${updatedPoints.pendingPoints}',
+        );
+      } else {
+        print('No pending transaction found to confirm');
+      }
+    } catch (e, stackTrace) {
+      print('Error confirming pending transaction: $e');
+      print(stackTrace);
+    }
+  }
+
+  @override
+  Future<void> syncProcessingOrders() async {
+    try {
+      print('Starting processing orders sync to update pending points');
+
+      // Get the WooCommerceSyncService through dependency injection
+      final syncService = getIt<WooCommerceSyncService>();
+
+      // Force clear processed orders for testing if needed
+      // Uncomment this line to force a full resync (for debugging)
+      syncService.clearProcessedOrders();
+
+      // Trigger a sync of WooCommerce orders, which will handle processing orders
+      await syncService.syncWooCommerceOrders();
+
+      // Refresh loyalty points after sync to ensure UI is updated
+      final points = await _repository.getLoyaltyPoints();
+      _pointsStreamController.add(points);
+
+      print('Processing orders sync completed successfully');
+    } catch (e, stackTrace) {
+      print('Error syncing processing orders: $e');
+      print(stackTrace);
+
+      // Even if the sync failed, refresh the points to show the current state
+      try {
+        final points = await _repository.getLoyaltyPoints();
+        _pointsStreamController.add(points);
+      } catch (_) {}
     }
   }
 }

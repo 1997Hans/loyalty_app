@@ -6,6 +6,16 @@ import 'package:loyalty_app/features/loyalty/domain/models/points_transaction.da
 import 'package:loyalty_app/features/loyalty/domain/models/woocommerce_order.dart';
 import 'package:loyalty_app/features/loyalty/domain/services/loyalty_service.dart';
 
+/// Extension method to simplify finding elements
+extension IterableExtension<T> on Iterable<T> {
+  T? firstWhereOrNull(bool Function(T) test) {
+    for (final element in this) {
+      if (test(element)) return element;
+    }
+    return null;
+  }
+}
+
 /// Service for synchronizing WooCommerce orders and processing loyalty points
 class WooCommerceSyncService {
   final WooCommerceClient _wooCommerceClient;
@@ -125,7 +135,8 @@ class WooCommerceSyncService {
       _addSyncStatus('Starting sync for customer ID: $_customerId');
 
       // Get orders from WooCommerce
-      final orders = await _wooCommerceClient.getCustomerOrders(_customerId!);
+      final int customerIdInt = int.parse(_customerId!);
+      final orders = await _wooCommerceClient.getCustomerOrders(customerIdInt);
       _addSyncStatus('Found ${orders.length} orders');
 
       // Process each order
@@ -249,28 +260,92 @@ class WooCommerceSyncService {
     int pointsToConfirm,
   ) async {
     try {
+      print(
+        '=== CONFIRMING PENDING POINTS FOR ORDER #${order.orderNumber} ===',
+      );
+
       // Get all transactions to find the pending transaction
       final transactions = await _loyaltyService.getTransactions();
 
-      // Find the pending transaction for this order
-      final pendingTransaction = transactions.firstWhere(
+      print(
+        'Looking for pending transaction for order #${order.orderNumber} (id: ${order.id})',
+      );
+      print(
+        'Found ${transactions.length} total transactions, checking for pending ones...',
+      );
+
+      // Find all pending transactions
+      final pendingTransactions =
+          transactions
+              .where((t) => t.status == TransactionStatus.pending)
+              .toList();
+      print('Found ${pendingTransactions.length} pending transactions');
+
+      // Log all pending transactions for debugging
+      for (final t in pendingTransactions) {
+        print('Pending transaction: id=${t.id}, metadata=${t.metadata}');
+      }
+
+      // Find the pending transaction for this order using multiple matching strategies
+      PointsTransaction? pendingTransaction;
+
+      // Strategy 1: Match by order_id in metadata
+      pendingTransaction = pendingTransactions.firstWhereOrNull(
         (t) =>
-            t.status == TransactionStatus.pending &&
+            t.metadata.containsKey('order_id') &&
             t.metadata['order_id'] == order.id.toString(),
-        orElse:
-            () =>
-                throw Exception(
-                  'No pending transaction found for order ${order.id}',
-                ),
+      );
+
+      // Strategy 2: Match by order number in description or metadata
+      if (pendingTransaction == null) {
+        pendingTransaction = pendingTransactions.firstWhereOrNull(
+          (t) =>
+              t.description.contains('order #${order.orderNumber}') ||
+              (t.metadata.containsKey('order_number') &&
+                  t.metadata['order_number'] == order.orderNumber),
+        );
+
+        if (pendingTransaction != null) {
+          print(
+            'Found pending transaction through order number matching: ${pendingTransaction.id}',
+          );
+        }
+      }
+
+      // Strategy 3: Just use the most recent pending transaction if we still can't find a match
+      if (pendingTransaction == null && pendingTransactions.isNotEmpty) {
+        // Sort by creation date, most recent first
+        pendingTransactions.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        pendingTransaction = pendingTransactions.first;
+        print(
+          'Using most recent pending transaction as fallback: ${pendingTransaction.id}',
+        );
+      }
+
+      if (pendingTransaction == null) {
+        print('❌ NO PENDING TRANSACTION FOUND for order #${order.orderNumber}');
+        _addSyncStatus(
+          'Could not find pending transaction for order #${order.orderNumber}',
+        );
+        return;
+      }
+
+      print(
+        '✓ Found pending transaction ${pendingTransaction.id} for order #${order.orderNumber}, confirming...',
       );
 
       // Confirm the pending points
       await _loyaltyService.confirmPendingTransaction(
         pendingTransaction.id,
-        pointsToConfirm,
+        order.id.toString(), // Pass order ID as string instead of points
       );
-    } catch (e) {
+
+      _addSyncStatus(
+        'Confirmed pending transaction ${pendingTransaction.id} for order #${order.orderNumber}',
+      );
+    } catch (e, stackTrace) {
       print('Error confirming pending points: $e');
+      print(stackTrace);
       _addSyncStatus('Failed to confirm pending points: $e');
     }
   }
@@ -315,6 +390,31 @@ class WooCommerceSyncService {
   /// Alias for syncWooCommerceOrders to match method name being called in the code
   Future<void> syncPoints() async {
     return syncWooCommerceOrders();
+  }
+
+  /// Clears the processed orders cache for testing/debugging
+  void clearProcessedOrders() {
+    final count = _processedOrders.length;
+    print('Clearing processed orders cache ($count items)');
+    _processedOrders.clear();
+    print('Processed orders cache cleared');
+  }
+
+  /// Cancel all pending operations and clear state when user logs out
+  void cancelPendingOperations() {
+    if (_isSyncing) {
+      _addSyncStatus('Cancelling current sync operation');
+      _isSyncing = false;
+    }
+
+    // Cancel any timers
+    _syncTimer?.cancel();
+    _syncTimer = null;
+
+    // Clear processed orders set
+    _processedOrders.clear();
+
+    _addSyncStatus('All pending operations cancelled');
   }
 
   /// Dispose resources
