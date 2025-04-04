@@ -37,7 +37,7 @@ void setupDependencies() {
   );
   getIt.registerLazySingleton<WooCommerceSyncService>(
     () => WooCommerceSyncService(
-      wooCommerceClient: getIt<WooCommerceClient>(),
+      woocommerceClient: getIt<WooCommerceClient>(),
       loyaltyService: getIt<LoyaltyService>(),
     ),
   );

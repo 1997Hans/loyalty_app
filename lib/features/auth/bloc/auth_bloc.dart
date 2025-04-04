@@ -143,16 +143,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       // Set customer ID in WooCommerce sync service if available
       try {
         final user = _authService.currentUser!;
-        final syncService = getIt<WooCommerceSyncService>();
-        syncService.customerId = user.id.toString();
+        if (user.id != null) {
+          final syncService = getIt<WooCommerceSyncService>();
+          syncService.customerId = user.id;
 
-        // Trigger initial data loading
-        print('Authenticated: Initializing loyalty data for user ${user.id}');
+          // Trigger initial data loading
+          print('Authenticated: Initializing loyalty data for user ${user.id}');
 
-        // Force loyalty data to reload immediately
-        final loyaltyBloc = getIt<LoyaltyBloc>();
-        loyaltyBloc.add(LoadPointsTransactions());
-            } catch (e) {
+          // Force loyalty data to reload immediately
+          final loyaltyBloc = getIt<LoyaltyBloc>();
+          loyaltyBloc.add(LoadPointsTransactions());
+        }
+      } catch (e) {
         print('Error initializing user data: $e');
       }
     } else {
@@ -170,13 +172,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       // Set customer ID in WooCommerce sync service
       try {
-        final syncService = getIt<WooCommerceSyncService>();
-        syncService.customerId = result.user!.id.toString();
+        if (result.user!.id != null) {
+          final syncService = getIt<WooCommerceSyncService>();
+          syncService.customerId = result.user!.id;
 
-        // Force loyalty data to reload
-        final loyaltyBloc = getIt<LoyaltyBloc>();
-        loyaltyBloc.add(LoadPointsTransactions());
-            } catch (e) {
+          // Force loyalty data to reload
+          final loyaltyBloc = getIt<LoyaltyBloc>();
+          loyaltyBloc.add(LoadPointsTransactions());
+        }
+      } catch (e) {
         print('Error setting customer ID: $e');
       }
 
@@ -200,13 +204,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
       // Set customer ID in WooCommerce sync service
       try {
-        final syncService = getIt<WooCommerceSyncService>();
-        syncService.customerId = result.user!.id.toString();
+        if (result.user!.id != null) {
+          final syncService = getIt<WooCommerceSyncService>();
+          syncService.customerId = result.user!.id;
 
-        // Force loyalty data to reload
-        final loyaltyBloc = getIt<LoyaltyBloc>();
-        loyaltyBloc.add(LoadPointsTransactions());
-            } catch (e) {
+          // Force loyalty data to reload
+          final loyaltyBloc = getIt<LoyaltyBloc>();
+          loyaltyBloc.add(LoadPointsTransactions());
+        }
+      } catch (e) {
         print('Error setting customer ID: $e');
       }
 
@@ -222,11 +228,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     // Clear WooCommerce sync service customer ID
     try {
       final syncService = getIt<WooCommerceSyncService>();
-
-      // First cancel any pending operations to ensure clean shutdown
-      syncService.cancelPendingOperations();
-
-      // Then clear the customer ID
       syncService.customerId = null;
 
       // Reset loyalty data to prevent data leakage between users
