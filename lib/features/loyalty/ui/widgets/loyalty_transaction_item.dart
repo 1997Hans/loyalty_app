@@ -10,10 +10,13 @@ class LoyaltyTransactionItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isPending = transaction.status == TransactionStatus.pending;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: isPending ? Colors.orange.withOpacity(0.1) : null,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
@@ -26,7 +29,9 @@ class LoyaltyTransactionItem extends StatelessWidget {
                 children: [
                   Text(
                     transaction.description,
-                    style: Theme.of(context).textTheme.titleSmall,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: isPending ? FontWeight.bold : null,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -45,7 +50,7 @@ class LoyaltyTransactionItem extends StatelessWidget {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        transaction.statusText,
+                        _getPendingText(),
                         style: TextStyle(
                           fontSize: 10,
                           color: _getStatusColor(),
@@ -60,10 +65,17 @@ class LoyaltyTransactionItem extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  transaction.pointsFormatted,
+                  isPending
+                      ? '(Pending) ${transaction.pointsFormatted}'
+                      : transaction.pointsFormatted,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: transaction.isEarning ? Colors.green : Colors.blue,
+                    color:
+                        isPending
+                            ? Colors.orange
+                            : (transaction.isEarning
+                                ? Colors.green
+                                : Colors.blue),
                   ),
                 ),
                 Text(
@@ -135,5 +147,19 @@ class LoyaltyTransactionItem extends StatelessWidget {
 
   double _calculateValue(int points) {
     return points.abs() * AppConfig.pointValueInPHP;
+  }
+
+  String _getPendingText() {
+    if (transaction.status == TransactionStatus.pending) {
+      // For pending transactions, find if we have points information in metadata
+      if (transaction.metadata.containsKey('pending_points')) {
+        final pendingPoints = transaction.metadata['pending_points'] ?? '0';
+        return 'Pending approval: $pendingPoints points';
+      }
+      return 'Pending approval';
+    }
+
+    // Default to just showing the status text
+    return transaction.statusText;
   }
 }

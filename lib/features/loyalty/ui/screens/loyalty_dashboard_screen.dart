@@ -1,27 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:loyalty_app/core/common/widgets/dinarys_logo.dart';
 import 'package:loyalty_app/core/common/widgets/simple_glass_card.dart';
-import 'package:loyalty_app/core/constants/app_config.dart';
-import 'package:loyalty_app/core/theme/app_theme.dart';
-import 'package:loyalty_app/core/utils/gradient_background.dart';
-import 'package:loyalty_app/features/loyalty/domain/models/loyalty_level.dart';
-import 'package:loyalty_app/features/loyalty/domain/models/loyalty_transaction.dart';
-import 'package:loyalty_app/features/loyalty/domain/blocs/loyalty_bloc.dart'
-    as domain_bloc;
 import 'package:loyalty_app/features/loyalty/ui/screens/loyalty_points_screen.dart';
-import 'package:loyalty_app/features/loyalty/ui/widgets/loyalty_points_widget.dart';
 import 'package:loyalty_app/core/services/notification_service.dart';
 import 'package:loyalty_app/features/loyalty/bloc/loyalty_bloc.dart' as bloc;
 import 'package:loyalty_app/features/loyalty/domain/models/loyalty_points.dart';
-import 'package:loyalty_app/features/loyalty/domain/models/points_transaction.dart';
 import 'package:loyalty_app/features/loyalty/ui/screens/points_redemption_screen.dart';
-import 'package:loyalty_app/features/loyalty/ui/widgets/loyalty_card.dart';
 import 'package:loyalty_app/features/loyalty/ui/widgets/loyalty_transaction_item.dart';
-import 'package:loyalty_app/features/loyalty/ui/screens/woocommerce_sync_screen.dart';
 import 'package:loyalty_app/features/auth/bloc/auth_bloc.dart' as auth_bloc;
 import 'package:loyalty_app/core/animations/animations.dart';
-import 'package:flutter/scheduler.dart';
 
 class LoyaltyDashboardScreen extends StatefulWidget {
   const LoyaltyDashboardScreen({super.key});
@@ -341,6 +328,7 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
                     'Pending',
                     '${points.pendingPoints}',
                     Icons.pending,
+                    isHighlighted: true,
                   ),
               ],
             ),
@@ -350,23 +338,35 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
     );
   }
 
-  Widget _buildPointsInfoItem(String label, String value, IconData icon) {
+  Widget _buildPointsInfoItem(
+    String label,
+    String value,
+    IconData icon, {
+    bool isHighlighted = false,
+  }) {
+    final Color textColor = isHighlighted ? Colors.amber : Colors.white;
+    final Color iconColor = isHighlighted ? Colors.amber : Colors.white70;
+
     return Column(
       children: [
-        Icon(icon, color: Colors.white70, size: 18),
+        Icon(icon, color: iconColor, size: 18),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: textColor,
           ),
         ),
         const SizedBox(height: 4),
         Text(
           label,
-          style: const TextStyle(color: Colors.white70, fontSize: 12),
+          style: TextStyle(
+            color:
+                isHighlighted ? Colors.amber.withOpacity(0.8) : Colors.white70,
+            fontSize: 12,
+          ),
         ),
       ],
     );

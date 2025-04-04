@@ -1,19 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:loyalty_app/core/common/widgets/simple_glass_card.dart';
-import 'package:loyalty_app/core/constants/app_config.dart';
-import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/core/utils/gradient_background.dart';
-import 'package:loyalty_app/core/services/notification_service.dart';
 import 'package:loyalty_app/features/loyalty/bloc/loyalty_bloc.dart';
 import 'package:loyalty_app/features/loyalty/domain/models/loyalty_points.dart';
-import 'package:loyalty_app/features/loyalty/domain/models/points_transaction.dart';
-import 'package:loyalty_app/features/loyalty/ui/screens/points_redemption_screen.dart';
-import 'package:loyalty_app/features/loyalty/ui/screens/woocommerce_sync_screen.dart';
-import 'package:loyalty_app/features/loyalty/ui/widgets/points_transaction_item.dart';
 import 'package:loyalty_app/features/loyalty/ui/widgets/loyalty_transaction_item.dart'
     as loyalty;
-import 'package:loyalty_app/features/loyalty/ui/widgets/points_summary_card.dart';
 import 'package:loyalty_app/core/animations/animations.dart';
 
 class LoyaltyPointsScreen extends StatefulWidget {
@@ -231,7 +223,53 @@ class _LoyaltyPointsScreenState extends State<LoyaltyPointsScreen>
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          if (points.pendingPoints > 0) ...[
+            const SizedBox(height: 16),
+            const Divider(color: Colors.white24),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.pending,
+                    color: Colors.orange,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            '+${points.pendingPoints} Points Pending',
+                            style: const TextStyle(
+                              color: Colors.orange,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Text(
+                        'Will be added after orders are completed',
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 16),
           const Divider(color: Colors.white24),
           const SizedBox(height: 16),
           Row(
