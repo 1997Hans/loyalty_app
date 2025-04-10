@@ -10,69 +10,128 @@ class LoyaltyTransactionItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPending = transaction.status == TransactionStatus.pending;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            _buildTransactionIcon(),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border:
+              isPending
+                  ? Border.all(color: Colors.amber.withOpacity(0.5), width: 1.5)
+                  : null,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              _buildTransactionIcon(),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            transaction.description,
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                        ),
+                        if (isPending)
+                          Container(
+                            margin: const EdgeInsets.only(left: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'PENDING',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.amber,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _formatDate(transaction.createdAt),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    if (!isPending &&
+                        transaction.status != TransactionStatus.completed)
+                      Container(
+                        margin: const EdgeInsets.only(top: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor().withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          transaction.statusText,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: _getStatusColor(),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    transaction.description,
-                    style: Theme.of(context).textTheme.titleSmall,
+                    transaction.pointsFormatted,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color:
+                          isPending
+                              ? Colors.amber
+                              : (transaction.isEarning
+                                  ? Colors.green
+                                  : Colors.blue),
+                    ),
                   ),
-                  const SizedBox(height: 4),
                   Text(
-                    _formatDate(transaction.createdAt),
-                    style: Theme.of(context).textTheme.bodySmall,
+                    '₱${_calculateValue(transaction.points).toStringAsFixed(2)}',
+                    style:
+                        isPending
+                            ? TextStyle(
+                              fontSize: 12,
+                              color: Colors.amber.withOpacity(0.8),
+                              fontStyle: FontStyle.italic,
+                            )
+                            : Theme.of(context).textTheme.bodySmall,
                   ),
-                  if (transaction.status != TransactionStatus.completed)
-                    Container(
-                      margin: const EdgeInsets.only(top: 4),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _getStatusColor().withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        transaction.statusText,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: _getStatusColor(),
-                          fontWeight: FontWeight.bold,
-                        ),
+                  if (isPending)
+                    const Text(
+                      'Processing',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.amber,
+                        fontStyle: FontStyle.italic,
                       ),
                     ),
                 ],
               ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  transaction.pointsFormatted,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: transaction.isEarning ? Colors.green : Colors.blue,
-                  ),
-                ),
-                Text(
-                  '₱${_calculateValue(transaction.points).toStringAsFixed(2)}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

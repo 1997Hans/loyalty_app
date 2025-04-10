@@ -177,14 +177,7 @@ class WooCommerceSyncService {
         'Processing order #${order.orderNumber} (status: ${order.status})',
       );
 
-      // Only process completed orders that haven't been processed before
-      if (order.status != 'completed') {
-        _addSyncStatus(
-          'Order #${order.orderNumber} not completed (${order.status}), skipping',
-        );
-        return;
-      }
-
+      // Check if order already processed
       if (_processedOrders.contains(orderId)) {
         _addSyncStatus(
           'Order #${order.orderNumber} already processed, skipping',
@@ -202,18 +195,36 @@ class WooCommerceSyncService {
         return;
       }
 
-      // Award points through loyalty service
-      await _loyaltyService.addPointsFromPurchase(
-        orderTotal,
-        orderId,
-        'WooCommerce order #${order.orderNumber}',
-      );
+      // Process order based on status
+      if (order.status == 'completed') {
+        // Award points through loyalty service for completed orders
+        await _loyaltyService.addPointsFromPurchase(
+          orderTotal,
+          orderId,
+          'WooCommerce order #${order.orderNumber}',
+        );
 
-      // Mark order as processed
-      _processedOrders.add(orderId);
-      _addSyncStatus(
-        'Awarded $pointsToAward points for order #${order.orderNumber}',
-      );
+        // Mark order as processed
+        _processedOrders.add(orderId);
+        _addSyncStatus(
+          'Awarded $pointsToAward points for order #${order.orderNumber}',
+        );
+      } else if (order.status == 'processing') {
+        // Add as pending points for processing orders
+        await _loyaltyService.addPendingPointsFromPurchase(
+          orderTotal,
+          orderId,
+          'WooCommerce order #${order.orderNumber} (Processing)',
+        );
+
+        _addSyncStatus(
+          'Added $pointsToAward pending points for order #${order.orderNumber}',
+        );
+      } else {
+        _addSyncStatus(
+          'Order #${order.orderNumber} status (${order.status}) not eligible for points',
+        );
+      }
     } catch (e) {
       _addSyncStatus('Error processing order: $e');
       print('Error processing order for loyalty points: $e');

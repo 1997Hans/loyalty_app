@@ -265,33 +265,57 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Available Points',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Points Summary',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const LoyaltyPointsScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text('Details'),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
             Row(
               children: [
+                // Current points badge
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.amber.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.amber.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Icon(Icons.stars, color: Colors.amber, size: 36),
+                  child: Text(
+                    '${points.currentPoints}',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.amber,
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    AnimatedCounter(
-                      value: points.currentPoints,
-                      style: const TextStyle(
-                        fontSize: 32,
+                    const Text(
+                      'Available Points',
+                      style: TextStyle(
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
                       ),
@@ -300,6 +324,27 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
                       'Value: ₱${points.currentValuePHP.toStringAsFixed(2)}',
                       style: const TextStyle(color: Colors.white70),
                     ),
+                    if (points.pendingPoints > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4.0),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.pending,
+                              color: Colors.amber,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              '+${points.pendingPoints} pending',
+                              style: const TextStyle(
+                                color: Colors.amber,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
                 const Spacer(),
@@ -336,12 +381,12 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
                   '${points.redeemedPoints}',
                   Icons.redeem,
                 ),
-                if (points.pendingPoints > 0)
-                  _buildPointsInfoItem(
-                    'Pending',
-                    '${points.pendingPoints}',
-                    Icons.pending,
-                  ),
+                _buildPointsInfoItem(
+                  'Pending',
+                  '${points.pendingPoints}',
+                  Icons.pending,
+                  isHighlighted: points.pendingPoints > 0,
+                ),
               ],
             ),
           ],
@@ -350,24 +395,29 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
     );
   }
 
-  Widget _buildPointsInfoItem(String label, String value, IconData icon) {
+  Widget _buildPointsInfoItem(
+    String label,
+    String value,
+    IconData icon, {
+    bool isHighlighted = false,
+  }) {
+    final Color textColor = isHighlighted ? Colors.amber : Colors.white;
+    final Color iconColor = isHighlighted ? Colors.amber : Colors.white70;
+
     return Column(
       children: [
-        Icon(icon, color: Colors.white70, size: 18),
+        Icon(icon, color: iconColor, size: 18),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: Colors.white,
+            color: textColor,
           ),
         ),
         const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white70, fontSize: 12),
-        ),
+        Text(label, style: TextStyle(color: iconColor, fontSize: 12)),
       ],
     );
   }

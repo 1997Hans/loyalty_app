@@ -196,69 +196,108 @@ class _LoyaltyPointsScreenState extends State<LoyaltyPointsScreen>
 
   Widget _buildPointsBalanceCard(BuildContext context, LoyaltyPoints points) {
     return SimpleGlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Points Balance',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Points Balance',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              const Icon(Icons.stars, color: Colors.amber, size: 40),
-              const SizedBox(width: 16),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AnimatedCounter(
-                    value: points.currentPoints,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Icon(Icons.stars, color: Colors.amber, size: 40),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    AnimatedCounter(
+                      value: points.currentPoints,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                  Text(
-                    'Value: ${points.pointsValueFormatted}',
-                    style: const TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          const Divider(color: Colors.white24),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildStatItem(
-                'Lifetime Points',
-                points.lifetimePoints.toString(),
-                '₱${points.lifetimeValuePHP.toStringAsFixed(2)}',
-              ),
-              _buildStatItem(
-                'Redeemed Points',
-                points.redeemedPoints.toString(),
-                '₱${points.redeemedValuePHP.toStringAsFixed(2)}',
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (points.pendingPoints > 0)
+                    Text(
+                      'Value: ${points.pointsValueFormatted}',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (points.pendingPoints > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6.0),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.pending,
+                                color: Colors.amber,
+                                size: 14,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '+${points.pendingPoints} points pending',
+                                style: const TextStyle(
+                                  color: Colors.amber,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            const Divider(color: Colors.white24),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _buildStatItem(
+                  'Lifetime Points',
+                  points.lifetimePoints.toString(),
+                  '₱${points.lifetimeValuePHP.toStringAsFixed(2)}',
+                ),
+                _buildStatItem(
+                  'Redeemed Points',
+                  points.redeemedPoints.toString(),
+                  '₱${points.redeemedValuePHP.toStringAsFixed(2)}',
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
             _buildStatItem(
               'Pending Points',
               points.pendingPoints.toString(),
-              'Will be added soon',
-              icon: Icons.hourglass_top,
-              iconColor: Colors.amber,
+              'From processing orders',
+              icon: Icons.pending,
+              iconColor:
+                  points.pendingPoints > 0 ? Colors.amber : Colors.white70,
+              textColor: points.pendingPoints > 0 ? Colors.amber : Colors.white,
             ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -269,6 +308,7 @@ class _LoyaltyPointsScreenState extends State<LoyaltyPointsScreen>
     String subtext, {
     IconData? icon,
     Color? iconColor,
+    Color? textColor,
   }) {
     return Row(
       children: [
@@ -286,8 +326,8 @@ class _LoyaltyPointsScreenState extends State<LoyaltyPointsScreen>
             const SizedBox(height: 4),
             Text(
               value,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: textColor ?? Colors.white,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),

@@ -16,6 +16,13 @@ abstract class LoyaltyService {
     String orderDetails,
   );
 
+  /// Add pending points from a processing order
+  Future<PointsTransaction?> addPendingPointsFromPurchase(
+    double amount,
+    String orderId,
+    String orderDetails,
+  );
+
   /// Redeem points for a reward
   Future<PointsTransaction?> redeemPoints(
     int points,

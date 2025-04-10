@@ -69,6 +69,41 @@ class LoyaltyServiceImpl implements LoyaltyService {
   }
 
   @override
+  Future<PointsTransaction?> addPendingPointsFromPurchase(
+    double amount,
+    String orderId,
+    String orderDetails,
+  ) async {
+    final points = LoyaltyPoints.calculatePointsForPurchase(amount);
+    final description = 'Processing #$orderId: $orderDetails';
+
+    final transaction = PointsTransaction(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      type: TransactionType.purchase,
+      points: points,
+      description: description,
+      createdAt: DateTime.now(),
+      status: TransactionStatus.pending,
+      metadata: {
+        'order_id': orderId,
+        'amount': amount.toString(),
+        'is_pending': 'true',
+      },
+    );
+
+    await _repository.addTransaction(transaction);
+    await _repository.updatePoints((currentPoints) {
+      return currentPoints.addPendingPoints(points);
+    });
+
+    // Update the stream
+    final updatedPoints = await getLoyaltyPoints();
+    _pointsStreamController.add(updatedPoints);
+
+    return transaction;
+  }
+
+  @override
   Future<PointsTransaction?> redeemPoints(
     int points,
     String rewardTitle,
