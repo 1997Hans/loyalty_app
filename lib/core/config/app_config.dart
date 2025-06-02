@@ -17,21 +17,22 @@ class AppConfig {
 
   /// WooCommerce API Configuration
   static const String woocommerceBaseUrl =
-      "https://sandbox.skyrocket.sg/wp-json/wc/v3";
+      "https://skyrocketstudios.asia/loyalty-app/wp-json/wc/v3";
   static const String woocommerceConsumerKey =
-      "ck_3bc2f9bdf9d14b9193e00fd63719a4d4b2a794b9";
+      "ck_db7dec5ac19b37b0586aabf5ac332d128822ba31";
   static const String woocommerceConsumerSecret =
-      "cs_71d319df94716ae6b0071a997e71f9f9213ffc24";
+      "cs_6ef9c24051894f4c14fb220771e9e228ef4e3566";
 
   /// WordPress API Configuration
-  static const String wordpressBaseUrl = "https://sandbox.skyrocket.sg/wp-json";
+  static const String wordpressBaseUrl =
+      "https://skyrocketstudios.asia/loyalty-app/wp-json";
 
   /// WordPress Admin Credentials
   /// TODO: Replace these with actual admin credentials when available
   static const String adminUsername =
-      "admin_hans"; // Admin user that can create users
+      "admin_csn1wz2s"; // Admin user that can create users
   static const String adminPassword =
-      "Tp6%N^C94odKQmzC"; // Regular admin password for authentication
+      "~oM1pZQFXzH3Ha9?"; // Regular admin password for authentication
 
   /// WooCommerce Loyalty Points Configuration
   static const double woocommercePointsPerAmount =

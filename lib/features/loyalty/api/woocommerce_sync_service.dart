@@ -20,11 +20,14 @@ class WooCommerceSyncService {
   // Maintain a set of processed orders to avoid duplicate points
   final Set<String> _processedOrders = {};
 
+  // Track order statuses to detect transitions (order_id -> status)
+  final Map<String, String> _orderStatuses = {};
+
   // Stream controller for sync status updates
   final _syncStatusController = StreamController<String>.broadcast();
 
-  // Sync interval in minutes
-  static const int _syncIntervalMinutes = 15;
+  // Sync interval - much faster for real-time updates
+  static const int _syncIntervalMinutes = 1; // Changed from 15 to 1 minute
   Timer? _syncTimer;
 
   // Getters
@@ -35,11 +38,20 @@ class WooCommerceSyncService {
 
   // Set customer ID
   set customerId(int? id) {
+    print(
+      'WooCommerceSyncService: Setting customer ID from $_customerId to $id',
+    );
     _customerId = id;
     if (id != null) {
       _addSyncStatus('Customer ID updated to: $id');
-      // Automatically start sync whenever customer ID is set
-      startBackgroundSync(syncInterval: const Duration(minutes: 5));
+      print(
+        'WooCommerceSyncService: Triggering immediate sync for customer $id',
+      );
+      // Immediate sync when customer ID is set, then start fast background sync
+      syncWooCommerceOrders(); // Immediate sync
+      startBackgroundSync(
+        syncInterval: const Duration(seconds: 30),
+      ); // Every 30 seconds
     } else {
       _addSyncStatus('Customer ID cleared');
       stopBackgroundSync();
@@ -59,43 +71,49 @@ class WooCommerceSyncService {
 
   // Safe way to add sync status
   void _addSyncStatus(String status) {
-    if (!_disposed && _syncStatusController.hasListener) {
-      _syncStatusController.add(status);
+    if (!_disposed) {
+      // Always log to console for debugging, regardless of listeners
+      print('WooCommerceSyncService: $status');
+
+      // Add to stream if there are listeners
+      if (_syncStatusController.hasListener) {
+        _syncStatusController.add(status);
+      }
     }
   }
 
   /// Starts the background sync process
   void startBackgroundSync({
-    Duration syncInterval = const Duration(minutes: 15),
+    Duration syncInterval = const Duration(seconds: 30),
   }) {
     if (_disposed) return;
 
     try {
-      _addSyncStatus('Starting WooCommerce background sync service...');
+      _addSyncStatus('🚀 Starting WooCommerce sync service...');
 
       // Cancel any existing timer
       _syncTimer?.cancel();
 
       if (_customerId == null) {
-        _addSyncStatus('Customer ID not set. Background sync not started.');
+        _addSyncStatus('❌ Customer ID not set. Background sync not started.');
         return;
       }
 
-      // Initial sync
-      syncWooCommerceOrders();
-
-      // Schedule periodic sync
+      // Schedule periodic sync (no initial sync as it's called separately)
       _syncTimer = Timer.periodic(syncInterval, (_) {
-        if (!_disposed) {
+        if (!_disposed && !_isSyncing) {
           syncWooCommerceOrders();
         }
       });
 
-      _addSyncStatus(
-        'Background sync scheduled every ${syncInterval.inMinutes} minutes',
-      );
+      final intervalText =
+          syncInterval.inSeconds < 60
+              ? '${syncInterval.inSeconds} seconds'
+              : '${syncInterval.inMinutes} minutes';
+
+      _addSyncStatus('✅ Background sync scheduled every $intervalText');
     } catch (e, stackTrace) {
-      _addSyncStatus('Error starting background sync: $e');
+      _addSyncStatus('❌ Error starting background sync: $e');
       print('WooCommerceSyncService error: $e');
       print(stackTrace);
     }
@@ -114,21 +132,23 @@ class WooCommerceSyncService {
 
     try {
       _isSyncing = true;
+      final startTime = DateTime.now();
+
       if (_customerId == null) {
-        _addSyncStatus('Customer ID not set. Cannot sync orders.');
+        _addSyncStatus('❌ Customer ID not set. Cannot sync orders.');
         return;
       }
 
-      _addSyncStatus('Starting WooCommerce orders sync...');
+      _addSyncStatus('🔄 Starting sync for customer $_customerId...');
 
-      // Test connection first
+      // Test connection first (with faster timeout)
       final isConnected = await _woocommerceClient.testConnection();
       if (!isConnected) {
-        _addSyncStatus(
-          'Failed to connect to WooCommerce API: ${_woocommerceClient.lastError}',
-        );
+        _addSyncStatus('❌ Connection failed: ${_woocommerceClient.lastError}');
         return;
       }
+
+      _addSyncStatus('✅ Connected to WooCommerce API');
 
       // Get orders from WooCommerce
       final ordersJson = await _woocommerceClient.getCustomerOrders(
@@ -136,14 +156,16 @@ class WooCommerceSyncService {
       );
 
       if (ordersJson.isEmpty) {
-        _addSyncStatus('No orders found for customer $_customerId');
+        _addSyncStatus('ℹ️ No orders found for customer $_customerId');
+        _lastSyncTime = DateTime.now();
         return;
       }
 
-      _addSyncStatus('Found ${ordersJson.length} orders');
+      _addSyncStatus('📦 Found ${ordersJson.length} orders, processing...');
 
       // Process each order for loyalty points
       int processedCount = 0;
+
       for (final orderJson in ordersJson) {
         if (_disposed) break;
 
@@ -151,10 +173,15 @@ class WooCommerceSyncService {
         processedCount++;
       }
 
-      _addSyncStatus('Processed $processedCount orders');
+      final duration = DateTime.now().difference(startTime);
+      _addSyncStatus(
+        '✅ Sync complete! Processed $processedCount orders (${duration.inMilliseconds}ms)',
+      );
       _lastSyncTime = DateTime.now();
+
+      // Sync complete
     } catch (e, stackTrace) {
-      _addSyncStatus('Error during sync: $e');
+      _addSyncStatus('❌ Sync error: $e');
       print('WooCommerceSyncService error: $e');
       print(stackTrace);
     } finally {
@@ -172,12 +199,14 @@ class WooCommerceSyncService {
       // Create order object from JSON
       final order = WooCommerceOrder.fromJson(orderJson);
       final orderId = order.id.toString();
+      final currentStatus = order.status;
+      final previousStatus = _orderStatuses[orderId];
 
       _addSyncStatus(
-        'Processing order #${order.orderNumber} (status: ${order.status})',
+        'Processing order #${order.orderNumber} (status: $currentStatus)',
       );
 
-      // Check if order already processed
+      // Check if order is fully processed (completed and already awarded)
       if (_processedOrders.contains(orderId)) {
         _addSyncStatus(
           'Order #${order.orderNumber} already processed, skipping',
@@ -195,36 +224,72 @@ class WooCommerceSyncService {
         return;
       }
 
-      // Process order based on status
-      if (order.status == 'completed') {
-        // Award points through loyalty service for completed orders
-        await _loyaltyService.addPointsFromPurchase(
-          orderTotal,
-          orderId,
-          'WooCommerce order #${order.orderNumber}',
-        );
+      // Handle status transitions and new orders
+      if (currentStatus == 'completed') {
+        if (previousStatus == 'processing') {
+          // Status transition: processing -> completed
+          // Convert pending points to completed points
+          try {
+            await _loyaltyService.convertPendingToCompleted(
+              orderId,
+              'WooCommerce order #${order.orderNumber}',
+            );
+            _addSyncStatus(
+              '🔄 Converted $pointsToAward pending points to completed for order #${order.orderNumber}',
+            );
+          } catch (e) {
+            // If no pending transaction found, add as new completed order
+            _addSyncStatus(
+              'No pending points found, adding as new completed order #${order.orderNumber}',
+            );
+            await _loyaltyService.addPointsFromPurchase(
+              orderTotal,
+              orderId,
+              'WooCommerce order #${order.orderNumber}',
+            );
+            _addSyncStatus(
+              'Awarded $pointsToAward points for order #${order.orderNumber}',
+            );
+          }
+        } else {
+          // New completed order (no previous status or wasn't processing)
+          await _loyaltyService.addPointsFromPurchase(
+            orderTotal,
+            orderId,
+            'WooCommerce order #${order.orderNumber}',
+          );
+          _addSyncStatus(
+            'Awarded $pointsToAward points for order #${order.orderNumber}',
+          );
+        }
 
-        // Mark order as processed
+        // Mark order as fully processed
         _processedOrders.add(orderId);
-        _addSyncStatus(
-          'Awarded $pointsToAward points for order #${order.orderNumber}',
-        );
-      } else if (order.status == 'processing') {
-        // Add as pending points for processing orders
-        await _loyaltyService.addPendingPointsFromPurchase(
-          orderTotal,
-          orderId,
-          'WooCommerce order #${order.orderNumber} (Processing)',
-        );
-
-        _addSyncStatus(
-          'Added $pointsToAward pending points for order #${order.orderNumber}',
-        );
+      } else if (currentStatus == 'processing') {
+        if (previousStatus != 'processing') {
+          // New processing order or status change to processing
+          await _loyaltyService.addPendingPointsFromPurchase(
+            orderTotal,
+            orderId,
+            'WooCommerce order #${order.orderNumber} (Processing)',
+          );
+          _addSyncStatus(
+            'Added $pointsToAward pending points for order #${order.orderNumber}',
+          );
+        } else {
+          // Order is still processing, no change needed
+          _addSyncStatus(
+            'Order #${order.orderNumber} still processing, no action needed',
+          );
+        }
       } else {
         _addSyncStatus(
-          'Order #${order.orderNumber} status (${order.status}) not eligible for points',
+          'Order #${order.orderNumber} status ($currentStatus) not eligible for points',
         );
       }
+
+      // Update order status tracking
+      _orderStatuses[orderId] = currentStatus;
     } catch (e) {
       _addSyncStatus('Error processing order: $e');
       print('Error processing order for loyalty points: $e');

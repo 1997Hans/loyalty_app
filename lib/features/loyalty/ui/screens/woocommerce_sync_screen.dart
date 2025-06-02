@@ -247,13 +247,15 @@ class _WooCommerceSyncScreenState extends State<WooCommerceSyncScreen> {
 
   Future<void> _checkConnection() async {
     final isConnected = await _client.testConnection();
-    setState(() {
-      _isConnected = isConnected;
-      _statusText =
-          isConnected
-              ? 'Connected to WooCommerce'
-              : 'Not connected: ${_client.lastError ?? "Unknown error"}';
-    });
+    if (mounted) {
+      setState(() {
+        _isConnected = isConnected;
+        _statusText =
+            isConnected
+                ? 'Connected to WooCommerce'
+                : 'Not connected: ${_client.lastError ?? "Unknown error"}';
+      });
+    }
   }
 
   void _syncNow() async {
@@ -611,30 +613,36 @@ class _WooCommerceSyncScreenState extends State<WooCommerceSyncScreen> {
     try {
       _wooCommerceSyncService = getIt<WooCommerceSyncService>();
 
-      setState(() {
-        _statusMessage = 'Connected to sync service';
-        _isConnected = true;
-      });
+      if (mounted) {
+        setState(() {
+          _statusMessage = 'Connected to sync service';
+          _isConnected = true;
+        });
+      }
 
       // Listen for sync status updates
       _syncStatusSubscription = _wooCommerceSyncService.syncStatus.listen((
         message,
       ) {
-        setState(() {
-          _syncLogs.insert(
-            0,
-            '${DateTime.now().toString().split('.')[0]} - $message',
-          );
-          if (message.contains('sync')) _isSyncing = true;
-          if (message.contains('Processed')) _isSyncing = false;
-          if (message.contains('Error')) _isSyncing = false;
-        });
+        if (mounted) {
+          setState(() {
+            _syncLogs.insert(
+              0,
+              '${DateTime.now().toString().split('.')[0]} - $message',
+            );
+            if (message.contains('sync')) _isSyncing = true;
+            if (message.contains('Processed')) _isSyncing = false;
+            if (message.contains('Error')) _isSyncing = false;
+          });
+        }
       });
     } catch (e) {
-      setState(() {
-        _statusMessage = 'Error initializing sync service: $e';
-        _isConnected = false;
-      });
+      if (mounted) {
+        setState(() {
+          _statusMessage = 'Error initializing sync service: $e';
+          _isConnected = false;
+        });
+      }
     }
   }
 

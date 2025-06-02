@@ -56,10 +56,22 @@ class WordPressAuthApi implements AuthApi {
         final userData = response.data;
         print('User data from API: $userData');
 
+        // Ensure userData is a Map before proceeding
+        if (userData is! Map<String, dynamic>) {
+          print('Error: Expected Map but got ${userData.runtimeType}');
+          return AuthResult(
+            success: false,
+            error: 'Invalid response format from server',
+          );
+        }
+
         // Add null checks and default values for all required fields
-        final String email = userData['email'] ?? '';
-        final String username = userData['username'] ?? userData['slug'] ?? '';
-        final String displayName = userData['name'] ?? username;
+        final String email = userData['email']?.toString() ?? '';
+        final String username =
+            userData['username']?.toString() ??
+            userData['slug']?.toString() ??
+            '';
+        final String displayName = userData['name']?.toString() ?? username;
 
         try {
           // Create AuthUser from WordPress response with null safety
@@ -67,14 +79,14 @@ class WordPressAuthApi implements AuthApi {
             'Creating AuthUser object with id: ${userData['id']}, email: $email, username: $username, displayName: $displayName',
           );
           final user = AuthUser(
-            id: userData['id'] ?? 0,
+            id: int.tryParse(userData['id']?.toString() ?? '0') ?? 0,
             email: email,
             username: username,
             displayName: displayName,
-            avatarUrl: userData['avatar_urls']?['96'],
+            avatarUrl: userData['avatar_urls']?['96']?.toString(),
             roles: List<String>.from(userData['roles'] ?? []),
-            firstName: userData['first_name'],
-            lastName: userData['last_name'],
+            firstName: userData['first_name']?.toString(),
+            lastName: userData['last_name']?.toString(),
           );
           print('AuthUser object created successfully');
 
@@ -94,12 +106,30 @@ class WordPressAuthApi implements AuthApi {
         }
       }
 
+      // Handle specific error codes
+      if (response.statusCode == 404) {
+        print('404 Error: WordPress REST API not found');
+        return AuthResult(
+          success: false,
+          error:
+              'WordPress REST API not accessible. Please check:\n'
+              '• WordPress is installed at the configured URL\n'
+              '• Permalink structure is not set to "Plain"\n'
+              '• REST API is enabled',
+        );
+      }
+
       print('Login failed with status code: ${response.statusCode}');
-      return AuthResult(
-        success: false,
-        error:
-            response.data?['message'] ?? 'Login failed: ${response.statusCode}',
-      );
+      String errorMessage = 'Login failed: ${response.statusCode}';
+
+      // Try to extract error message safely
+      if (response.data is Map && response.data['message'] != null) {
+        errorMessage = response.data['message'].toString();
+      } else if (response.data is String) {
+        errorMessage = response.data;
+      }
+
+      return AuthResult(success: false, error: errorMessage);
     } on DioException catch (e) {
       print('DioException during login: ${e.type}');
       if (e.response != null) {

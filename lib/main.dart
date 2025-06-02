@@ -6,29 +6,34 @@ import 'package:loyalty_app/core/di/dependency_injection.dart';
 import 'package:loyalty_app/core/theme/app_theme.dart';
 import 'package:loyalty_app/features/auth/bloc/auth_bloc.dart';
 import 'package:loyalty_app/features/auth/ui/screens/landing_screen.dart';
-import 'package:loyalty_app/features/loyalty/api/woocommerce_sync_service.dart';
 import 'package:loyalty_app/features/loyalty/bloc/loyalty_bloc.dart';
 import 'package:loyalty_app/core/navigation/main_navigation.dart';
 
 void main() {
-  // Ensure Flutter is initialized
-  WidgetsFlutterBinding.ensureInitialized();
+  // Run app with error handling first to avoid zone mismatch
+  runZonedGuarded(
+    () async {
+      // Ensure Flutter is initialized
+      WidgetsFlutterBinding.ensureInitialized();
 
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-    ),
+      SystemChrome.setSystemUIOverlayStyle(
+        const SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.light,
+        ),
+      );
+
+      // Set up dependency injection
+      setupDependencies();
+
+      // Run the app
+      runApp(const MyApp());
+    },
+    (error, stack) {
+      print('Unhandled error in app: $error');
+      print(stack);
+    },
   );
-
-  // Set up dependency injection
-  setupDependencies();
-
-  // Run the app with error handling
-  runZonedGuarded(() => runApp(const MyApp()), (error, stack) {
-    print('Unhandled error in app: $error');
-    print(stack);
-  });
 }
 
 class MyApp extends StatelessWidget {

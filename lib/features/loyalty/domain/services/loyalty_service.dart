@@ -23,6 +23,12 @@ abstract class LoyaltyService {
     String orderDetails,
   );
 
+  /// Convert pending points to completed points for a specific order
+  Future<PointsTransaction?> convertPendingToCompleted(
+    String orderId,
+    String orderDetails,
+  );
+
   /// Redeem points for a reward
   Future<PointsTransaction?> redeemPoints(
     int points,

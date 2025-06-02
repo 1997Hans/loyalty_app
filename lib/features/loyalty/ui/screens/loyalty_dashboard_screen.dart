@@ -50,7 +50,39 @@ class _LoyaltyDashboardScreenState extends State<LoyaltyDashboardScreen>
   Widget build(BuildContext context) {
     super.build(context); // Required for AutomaticKeepAliveClientMixin
     return Scaffold(
-      appBar: AppBar(title: const Text('Loyalty Dashboard')),
+      appBar: AppBar(
+        title: const Text('Loyalty Dashboard'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.sync),
+            tooltip: 'Sync WooCommerce Data',
+            onPressed: () async {
+              // Show sync in progress
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Row(
+                    children: [
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      SizedBox(width: 12),
+                      Text('Syncing WooCommerce data...'),
+                    ],
+                  ),
+                  duration: Duration(seconds: 3),
+                ),
+              );
+
+              // Trigger immediate loyalty data reload
+              context.read<bloc.LoyaltyBloc>().add(
+                bloc.LoadPointsTransactions(),
+              );
+            },
+          ),
+        ],
+      ),
       body: BlocConsumer<bloc.LoyaltyBloc, bloc.LoyaltyState>(
         listener: (context, state) {
           // Safe null checks for all state properties

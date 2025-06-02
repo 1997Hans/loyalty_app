@@ -104,6 +104,63 @@ class LoyaltyServiceImpl implements LoyaltyService {
   }
 
   @override
+  Future<PointsTransaction?> convertPendingToCompleted(
+    String orderId,
+    String orderDetails,
+  ) async {
+    // Find pending transaction for this order
+    final transactions = await _repository.getTransactions();
+    final pendingTransaction = transactions.firstWhere(
+      (tx) =>
+          tx.metadata['order_id'] == orderId &&
+          tx.status == TransactionStatus.pending,
+      orElse:
+          () =>
+              throw Exception(
+                'No pending transaction found for order $orderId',
+              ),
+    );
+
+    // Create a new completed transaction
+    final completedTransaction = PointsTransaction(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      type: TransactionType.purchase,
+      points: pendingTransaction.points,
+      description: 'Completed: $orderDetails',
+      createdAt: DateTime.now(),
+      status: TransactionStatus.completed,
+      metadata: {
+        'order_id': orderId,
+        'converted_from_pending': 'true',
+        'original_transaction_id': pendingTransaction.id,
+        ...pendingTransaction.metadata,
+      },
+    );
+
+    // Add the completed transaction
+    await _repository.addTransaction(completedTransaction);
+
+    // Update points: convert pending to regular points
+    await _repository.updatePoints((currentPoints) {
+      return currentPoints.confirmPendingPoints(pendingTransaction.points);
+    });
+
+    // Remove or mark the old pending transaction as converted
+    // Note: In a real implementation, you might want to keep the history
+    // For now, we'll leave the pending transaction but it won't affect totals
+    // since confirmPendingPoints handles the point transfer properly
+
+    // Update the stream
+    final updatedPoints = await getLoyaltyPoints();
+    _pointsStreamController.add(updatedPoints);
+
+    print(
+      '✅ Converted ${pendingTransaction.points} pending points to completed for order $orderId',
+    );
+    return completedTransaction;
+  }
+
+  @override
   Future<PointsTransaction?> redeemPoints(
     int points,
     String rewardTitle,
